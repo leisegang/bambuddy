@@ -28,6 +28,7 @@ class ThreeMFParser:
             with zipfile.ZipFile(self.file_path, "r") as zf:
                 self._parse_slice_info(zf)
                 self._parse_project_settings(zf)
+                self._parse_gcode_header(zf)
                 self._parse_3dmodel(zf)
                 self._extract_thumbnail(zf)
 
@@ -97,6 +98,27 @@ class ThreeMFParser:
                     self._extract_print_settings(data)
                 except json.JSONDecodeError:
                     pass
+        except Exception:
+            pass
+
+    def _parse_gcode_header(self, zf: zipfile.ZipFile):
+        """Parse G-code file header for total layer count."""
+        import re
+        try:
+            # Look for plate_1.gcode or similar
+            gcode_files = [f for f in zf.namelist() if f.endswith('.gcode')]
+            if not gcode_files:
+                return
+
+            # Read first 2KB of G-code (header contains the layer count)
+            gcode_path = gcode_files[0]
+            with zf.open(gcode_path) as f:
+                header = f.read(2048).decode('utf-8', errors='ignore')
+
+            # Look for "; total layer number: XX" pattern
+            match = re.search(r';\s*total\s+layer\s+number[:\s]+(\d+)', header, re.IGNORECASE)
+            if match:
+                self.metadata["total_layers"] = int(match.group(1))
         except Exception:
             pass
 
@@ -652,6 +674,7 @@ class ArchiveService:
             filament_type=metadata.get("filament_type"),
             filament_color=metadata.get("filament_color"),
             layer_height=metadata.get("layer_height"),
+            total_layers=metadata.get("total_layers"),
             nozzle_diameter=metadata.get("nozzle_diameter"),
             bed_temperature=metadata.get("bed_temperature"),
             nozzle_temperature=metadata.get("nozzle_temperature"),

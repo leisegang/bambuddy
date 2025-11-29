@@ -68,6 +68,7 @@ def archive_to_response(
         "filament_type": archive.filament_type,
         "filament_color": archive.filament_color,
         "layer_height": archive.layer_height,
+        "total_layers": archive.total_layers,
         "nozzle_diameter": archive.nozzle_diameter,
         "bed_temperature": archive.bed_temperature,
         "nozzle_temperature": archive.nozzle_temperature,
@@ -1092,6 +1093,7 @@ async def reprint_archive(
     from backend.app.models.printer import Printer
     from backend.app.services.bambu_ftp import upload_file_async
     from backend.app.services.printer_manager import printer_manager
+    from backend.app.main import register_expected_print
 
     # Get archive
     service = ArchiveService(db)
@@ -1127,6 +1129,9 @@ async def reprint_archive(
 
     if not uploaded:
         raise HTTPException(500, "Failed to upload file to printer")
+
+    # Register this as an expected print so we don't create a duplicate archive
+    register_expected_print(printer_id, remote_filename, archive_id)
 
     # Start the print
     started = printer_manager.start_print(printer_id, remote_filename)

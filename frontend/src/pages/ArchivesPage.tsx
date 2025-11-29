@@ -51,6 +51,7 @@ import { QRCodeModal } from '../components/QRCodeModal';
 import { PhotoGalleryModal } from '../components/PhotoGalleryModal';
 import { ProjectPageModal } from '../components/ProjectPageModal';
 import { TimelapseViewer } from '../components/TimelapseViewer';
+import { AddToQueueModal } from '../components/AddToQueueModal';
 import { useToast } from '../contexts/ToastContext';
 
 function formatFileSize(bytes: number): string {
@@ -99,6 +100,7 @@ function ArchiveCard({
   const [showQRCode, setShowQRCode] = useState(false);
   const [showPhotos, setShowPhotos] = useState(false);
   const [showProjectPage, setShowProjectPage] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const timelapseScanMutation = useMutation({
@@ -147,6 +149,11 @@ function ArchiveCard({
       label: 'Print',
       icon: <Printer className="w-4 h-4" />,
       onClick: () => setShowReprint(true),
+    },
+    {
+      label: 'Schedule',
+      icon: <Calendar className="w-4 h-4" />,
+      onClick: () => setShowSchedule(true),
     },
     {
       label: 'Open in Bambu Studio',
@@ -376,10 +383,12 @@ function ArchiveCard({
               {archive.filament_used_grams.toFixed(1)}g
             </div>
           )}
-          {archive.layer_height && (
+          {(archive.layer_height || archive.total_layers) && (
             <div className="flex items-center gap-1.5 text-bambu-gray">
               <Layers className="w-3 h-3" />
-              {archive.layer_height}mm
+              {archive.total_layers && <span>{archive.total_layers} layers</span>}
+              {archive.total_layers && archive.layer_height && <span className="text-bambu-gray/50">·</span>}
+              {archive.layer_height && <span>{archive.layer_height}mm</span>}
             </div>
           )}
           {archive.filament_type && (
@@ -609,6 +618,14 @@ function ArchiveCard({
           archiveId={archive.id}
           archiveName={archive.print_name || archive.filename}
           onClose={() => setShowProjectPage(false)}
+        />
+      )}
+
+      {showSchedule && (
+        <AddToQueueModal
+          archiveId={archive.id}
+          archiveName={archive.print_name || archive.filename}
+          onClose={() => setShowSchedule(false)}
         />
       )}
     </Card>

@@ -118,6 +118,56 @@ class PrinterManager:
             return self._clients[printer_id].start_print(filename)
         return False
 
+    def stop_print(self, printer_id: int) -> bool:
+        """Stop the current print on a connected printer."""
+        if printer_id in self._clients:
+            return self._clients[printer_id].stop_print()
+        return False
+
+    async def wait_for_cooldown(
+        self,
+        printer_id: int,
+        target_temp: float = 50.0,
+        timeout: int = 600,
+        check_interval: int = 10,
+    ) -> bool:
+        """Wait for the nozzle to cool down to a safe temperature.
+
+        Args:
+            printer_id: The printer to monitor
+            target_temp: Target temperature to wait for (default 50°C)
+            timeout: Maximum seconds to wait (default 600s = 10 min)
+            check_interval: Seconds between temperature checks (default 10s)
+
+        Returns:
+            True if cooled down, False if timeout or not connected
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        elapsed = 0
+        while elapsed < timeout:
+            state = self.get_status(printer_id)
+            if not state or not state.connected:
+                logger.warning(f"Printer {printer_id} disconnected during cooldown wait")
+                return False
+
+            # Check nozzle temperature (and nozzle_2 for dual extruders)
+            nozzle_temp = state.temperatures.get("nozzle", 0)
+            nozzle_2_temp = state.temperatures.get("nozzle_2", 0)
+            max_temp = max(nozzle_temp, nozzle_2_temp)
+
+            if max_temp <= target_temp:
+                logger.info(f"Printer {printer_id} cooled down to {max_temp}°C")
+                return True
+
+            logger.debug(f"Printer {printer_id} nozzle at {max_temp}°C, waiting for {target_temp}°C...")
+            await asyncio.sleep(check_interval)
+            elapsed += check_interval
+
+        logger.warning(f"Printer {printer_id} cooldown timeout after {timeout}s")
+        return False
+
     def enable_logging(self, printer_id: int, enabled: bool = True) -> bool:
         """Enable or disable MQTT logging for a printer."""
         if printer_id in self._clients:

@@ -26,6 +26,7 @@ class PrintArchive(Base):
     filament_type: Mapped[str | None] = mapped_column(String(50))
     filament_color: Mapped[str | None] = mapped_column(String(50))
     layer_height: Mapped[float | None] = mapped_column(Float)
+    total_layers: Mapped[int | None] = mapped_column(Integer)
     nozzle_diameter: Mapped[float | None] = mapped_column(Float)
     bed_temperature: Mapped[int | None] = mapped_column(Integer)
     nozzle_temperature: Mapped[int | None] = mapped_column(Integer)

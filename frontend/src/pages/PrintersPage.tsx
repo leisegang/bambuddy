@@ -25,6 +25,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { FileManagerModal } from '../components/FileManagerModal';
 import { MQTTDebugModal } from '../components/MQTTDebugModal';
 import { HMSErrorModal } from '../components/HMSErrorModal';
+import { PrinterQueueWidget } from '../components/PrinterQueueWidget';
 
 function formatTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -313,6 +314,11 @@ function PrinterCard({ printer, hideIfDisconnected }: { printer: Printer; hideIf
                 </div>
               </div>
             </div>
+
+            {/* Queue Widget - shows next scheduled print */}
+            {status.state !== 'RUNNING' && (
+              <PrinterQueueWidget printerId={printer.id} />
+            )}
 
             {/* Temperatures */}
             {status.temperatures && (

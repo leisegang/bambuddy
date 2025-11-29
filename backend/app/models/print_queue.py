@@ -1,0 +1,50 @@
+from datetime import datetime
+from sqlalchemy import String, Boolean, Integer, DateTime, ForeignKey, Text, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from backend.app.core.database import Base
+
+
+class PrintQueueItem(Base):
+    """Print queue item for scheduled/queued prints."""
+
+    __tablename__ = "print_queue"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    # Links
+    printer_id: Mapped[int] = mapped_column(
+        ForeignKey("printers.id", ondelete="CASCADE")
+    )
+    archive_id: Mapped[int] = mapped_column(
+        ForeignKey("print_archives.id", ondelete="CASCADE")
+    )
+
+    # Scheduling
+    position: Mapped[int] = mapped_column(Integer, default=0)  # Queue order
+    scheduled_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # None = ASAP
+
+    # Conditions
+    require_previous_success: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Power management
+    auto_off_after: Mapped[bool] = mapped_column(Boolean, default=False)  # Power off printer after print
+
+    # Status: pending, printing, completed, failed, skipped, cancelled
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+
+    # Tracking
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    # Relationships
+    printer: Mapped["Printer"] = relationship()
+    archive: Mapped["PrintArchive"] = relationship()
+
+
+from backend.app.models.printer import Printer  # noqa: E402
+from backend.app.models.archive import PrintArchive  # noqa: E402

@@ -3,27 +3,51 @@ import logging
 from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
+from logging.handlers import RotatingFileHandler
 
 from fastapi import FastAPI
 
-# Configure logging for all modules
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s [%(name)s] %(message)s'
+# Configure logging for all modules - console + file
+log_format = '%(asctime)s %(levelname)s [%(name)s] %(message)s'
+log_level = logging.INFO
+
+# Create root logger
+root_logger = logging.getLogger()
+root_logger.setLevel(log_level)
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(log_level)
+console_handler.setFormatter(logging.Formatter(log_format))
+root_logger.addHandler(console_handler)
+
+# File handler - rotating log file (5MB max, keep 3 backups)
+log_file = Path(__file__).parent.parent.parent / "bambutrack.log"
+file_handler = RotatingFileHandler(
+    log_file,
+    maxBytes=5*1024*1024,  # 5MB
+    backupCount=3,
+    encoding='utf-8'
 )
+file_handler.setLevel(log_level)
+file_handler.setFormatter(logging.Formatter(log_format))
+root_logger.addHandler(file_handler)
+
+logging.info(f"Logging to file: {log_file}")
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from backend.app.core.config import settings as app_settings
 from backend.app.core.database import init_db, async_session
 from backend.app.core.websocket import ws_manager
-from backend.app.api.routes import printers, archives, websocket, filaments, cloud, smart_plugs
+from backend.app.api.routes import printers, archives, websocket, filaments, cloud, smart_plugs, print_queue
 from backend.app.api.routes import settings as settings_routes
 from backend.app.services.printer_manager import (
     printer_manager,
     printer_state_to_dict,
     init_printer_connections,
 )
+from backend.app.services.print_scheduler import scheduler as print_scheduler
 from backend.app.services.bambu_mqtt import PrinterState
 from backend.app.services.archive import ArchiveService
 from backend.app.services.bambu_ftp import download_file_async
@@ -35,8 +59,26 @@ from backend.app.models.smart_plug import SmartPlug
 # Track active prints: {(printer_id, filename): archive_id}
 _active_prints: dict[tuple[int, str], int] = {}
 
+# Track expected prints from reprint/scheduled (skip auto-archiving for these)
+# {(printer_id, filename): archive_id}
+_expected_prints: dict[tuple[int, str], int] = {}
+
 # Track starting energy for prints: {archive_id: starting_kwh}
 _print_energy_start: dict[int, float] = {}
+
+
+def register_expected_print(printer_id: int, filename: str, archive_id: int):
+    """Register an expected print from reprint/scheduled so we don't create duplicate archives."""
+    # Store with multiple filename variations to catch different naming patterns
+    _expected_prints[(printer_id, filename)] = archive_id
+    # Also store without .3mf extension if present
+    if filename.endswith(".3mf"):
+        base = filename[:-4]
+        _expected_prints[(printer_id, base)] = archive_id
+        _expected_prints[(printer_id, f"{base}.gcode")] = archive_id
+    logging.getLogger(__name__).info(
+        f"Registered expected print: printer={printer_id}, file={filename}, archive={archive_id}"
+    )
 
 
 async def on_printer_status_change(printer_id: int, state: PrinterState):
@@ -74,6 +116,112 @@ async def on_print_start(printer_id: int, data: dict):
         logger.info(f"Print start detected - filename: {filename}, subtask: {subtask_name}")
 
         if not filename and not subtask_name:
+            return
+
+        # Check if this is an expected print from reprint/scheduled
+        # Build list of possible keys to check
+        expected_keys = []
+        if subtask_name:
+            expected_keys.append((printer_id, subtask_name))
+            expected_keys.append((printer_id, f"{subtask_name}.3mf"))
+            expected_keys.append((printer_id, f"{subtask_name}.gcode.3mf"))
+        if filename:
+            fname = filename.split("/")[-1] if "/" in filename else filename
+            expected_keys.append((printer_id, fname))
+            # Strip extensions to match
+            base = fname.replace(".gcode", "").replace(".3mf", "")
+            expected_keys.append((printer_id, base))
+            expected_keys.append((printer_id, f"{base}.3mf"))
+
+        expected_archive_id = None
+        for key in expected_keys:
+            expected_archive_id = _expected_prints.pop(key, None)
+            if expected_archive_id:
+                # Clean up other possible keys for this print
+                for other_key in expected_keys:
+                    _expected_prints.pop(other_key, None)
+                break
+
+        if expected_archive_id:
+            # This is a reprint/scheduled print - use existing archive, don't create new one
+            logger.info(f"Using expected archive {expected_archive_id} for print (skipping duplicate)")
+            from backend.app.models.archive import PrintArchive
+            from datetime import datetime
+
+            result = await db.execute(
+                select(PrintArchive).where(PrintArchive.id == expected_archive_id)
+            )
+            archive = result.scalar_one_or_none()
+
+            if archive:
+                # Update archive status to printing
+                archive.status = "printing"
+                archive.started_at = datetime.now()
+                await db.commit()
+
+                # Track as active print
+                _active_prints[(printer_id, archive.filename)] = archive.id
+                if subtask_name:
+                    _active_prints[(printer_id, f"{subtask_name}.3mf")] = archive.id
+
+                # Set up energy tracking
+                try:
+                    plug_result = await db.execute(
+                        select(SmartPlug).where(SmartPlug.printer_id == printer_id)
+                    )
+                    plug = plug_result.scalar_one_or_none()
+                    if plug:
+                        energy = await tasmota_service.get_energy(plug)
+                        if energy and energy.get("total") is not None:
+                            _print_energy_start[archive.id] = energy["total"]
+                            logger.info(f"Recorded starting energy for archive {archive.id}: {energy['total']} kWh")
+                except Exception as e:
+                    logger.warning(f"Failed to record starting energy: {e}")
+
+                await ws_manager.send_archive_updated({
+                    "id": archive.id,
+                    "status": "printing",
+                })
+
+            # Smart plug automation for expected prints too
+            try:
+                await smart_plug_manager.on_print_start(printer_id, db)
+            except Exception as e:
+                logger.warning(f"Smart plug on_print_start failed: {e}")
+
+            return  # Skip creating a new archive
+
+        # Check if there's already a "printing" archive for this printer/file
+        # This prevents duplicates when backend restarts during an active print
+        from backend.app.models.archive import PrintArchive
+        check_name = subtask_name or filename.split("/")[-1].replace(".gcode", "").replace(".3mf", "")
+        existing = await db.execute(
+            select(PrintArchive)
+            .where(PrintArchive.printer_id == printer_id)
+            .where(PrintArchive.status == "printing")
+            .where(PrintArchive.print_name.ilike(f"%{check_name}%"))
+            .order_by(PrintArchive.created_at.desc())
+            .limit(1)
+        )
+        existing_archive = existing.scalar_one_or_none()
+        if existing_archive:
+            logger.info(f"Skipping duplicate - already have printing archive {existing_archive.id} for {check_name}")
+            # Track this as the active print
+            _active_prints[(printer_id, existing_archive.filename)] = existing_archive.id
+            # Also set up energy tracking if not already tracked
+            if existing_archive.id not in _print_energy_start:
+                try:
+                    plug_result = await db.execute(
+                        select(SmartPlug).where(SmartPlug.printer_id == printer_id)
+                    )
+                    plug = plug_result.scalar_one_or_none()
+                    if plug:
+                        energy = await tasmota_service.get_energy(plug)
+                        if energy and energy.get("total") is not None:
+                            _print_energy_start[existing_archive.id] = energy["total"]
+                            logger.info(f"Recorded starting energy for existing archive {existing_archive.id}: {energy['total']} kWh")
+                except Exception as e:
+                    logger.warning(f"Failed to record starting energy for existing archive: {e}")
             return
 
         # Build list of possible 3MF filenames to try
@@ -389,6 +537,56 @@ async def on_print_complete(printer_id: int, data: dict):
         import logging
         logging.getLogger(__name__).warning(f"Smart plug on_print_complete failed: {e}")
 
+    # Update queue item if this was a scheduled print
+    try:
+        async with async_session() as db:
+            from backend.app.models.print_queue import PrintQueueItem
+            from backend.app.models.smart_plug import SmartPlug
+            from backend.app.services.tasmota import tasmota_service
+
+            result = await db.execute(
+                select(PrintQueueItem)
+                .where(PrintQueueItem.printer_id == printer_id)
+                .where(PrintQueueItem.status == "printing")
+            )
+            queue_item = result.scalar_one_or_none()
+            if queue_item:
+                status = data.get("status", "completed")
+                queue_item.status = status
+                queue_item.completed_at = datetime.now()
+                await db.commit()
+                logger.info(f"Updated queue item {queue_item.id} status to {status}")
+
+                # Handle auto_off_after - power off printer if requested (after cooldown)
+                if queue_item.auto_off_after:
+                    result = await db.execute(
+                        select(SmartPlug).where(SmartPlug.printer_id == printer_id)
+                    )
+                    plug = result.scalar_one_or_none()
+                    if plug and plug.enabled:
+                        logger.info(f"Auto-off requested for printer {printer_id}, waiting for cooldown...")
+
+                        async def cooldown_and_poweroff(pid: int, plug_id: int):
+                            # Wait for nozzle to cool down
+                            await printer_manager.wait_for_cooldown(pid, target_temp=50.0, timeout=600)
+                            # Re-fetch plug in new session
+                            async with async_session() as new_db:
+                                result = await new_db.execute(
+                                    select(SmartPlug).where(SmartPlug.id == plug_id)
+                                )
+                                p = result.scalar_one_or_none()
+                                if p and p.enabled:
+                                    success = await tasmota_service.turn_off(p)
+                                    if success:
+                                        logger.info(f"Powered off printer {pid} via smart plug '{p.name}'")
+                                    else:
+                                        logger.warning(f"Failed to power off printer {pid} via smart plug")
+
+                        asyncio.create_task(cooldown_and_poweroff(printer_id, plug.id))
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Queue item update failed: {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -406,9 +604,13 @@ async def lifespan(app: FastAPI):
     async with async_session() as db:
         await init_printer_connections(db)
 
+    # Start the print scheduler
+    asyncio.create_task(print_scheduler.run())
+
     yield
 
     # Shutdown
+    print_scheduler.stop()
     printer_manager.disconnect_all()
 
 
@@ -426,6 +628,7 @@ app.include_router(filaments.router, prefix=app_settings.api_prefix)
 app.include_router(settings_routes.router, prefix=app_settings.api_prefix)
 app.include_router(cloud.router, prefix=app_settings.api_prefix)
 app.include_router(smart_plugs.router, prefix=app_settings.api_prefix)
+app.include_router(print_queue.router, prefix=app_settings.api_prefix)
 app.include_router(websocket.router, prefix=app_settings.api_prefix)
 
 

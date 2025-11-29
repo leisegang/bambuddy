@@ -45,6 +45,7 @@ class ArchiveResponse(BaseModel):
     filament_type: str | None
     filament_color: str | None
     layer_height: float | None
+    total_layers: int | None = None
     nozzle_diameter: float | None
     bed_temperature: int | None
     nozzle_temperature: int | None

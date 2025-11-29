@@ -99,6 +99,7 @@ export interface Archive {
   filament_type: string | null;
   filament_color: string | null;
   layer_height: number | null;
+  total_layers: number | null;
   nozzle_diameter: number | null;
   bed_temperature: number | null;
   nozzle_temperature: number | null;
@@ -259,6 +260,41 @@ export interface SmartPlugTestResult {
   success: boolean;
   state: string | null;
   device_name: string | null;
+}
+
+// Print Queue types
+export interface PrintQueueItem {
+  id: number;
+  printer_id: number;
+  archive_id: number;
+  position: number;
+  scheduled_time: string | null;
+  require_previous_success: boolean;
+  auto_off_after: boolean;
+  status: 'pending' | 'printing' | 'completed' | 'failed' | 'skipped' | 'cancelled';
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+  created_at: string;
+  archive_name?: string | null;
+  archive_thumbnail?: string | null;
+  printer_name?: string | null;
+}
+
+export interface PrintQueueItemCreate {
+  printer_id: number;
+  archive_id: number;
+  scheduled_time?: string | null;
+  require_previous_success?: boolean;
+  auto_off_after?: boolean;
+}
+
+export interface PrintQueueItemUpdate {
+  printer_id?: number;
+  position?: number;
+  scheduled_time?: string | null;
+  require_previous_success?: boolean;
+  auto_off_after?: boolean;
 }
 
 // MQTT Logging types
@@ -566,4 +602,33 @@ export const api = {
       body: JSON.stringify({ ip_address, username, password }),
     }),
 
+  // Print Queue
+  getQueue: (printerId?: number, status?: string) => {
+    const params = new URLSearchParams();
+    if (printerId) params.set('printer_id', String(printerId));
+    if (status) params.set('status', status);
+    return request<PrintQueueItem[]>(`/queue/?${params}`);
+  },
+  getQueueItem: (id: number) => request<PrintQueueItem>(`/queue/${id}`),
+  addToQueue: (data: PrintQueueItemCreate) =>
+    request<PrintQueueItem>('/queue/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateQueueItem: (id: number, data: PrintQueueItemUpdate) =>
+    request<PrintQueueItem>(`/queue/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  removeFromQueue: (id: number) =>
+    request<{ message: string }>(`/queue/${id}`, { method: 'DELETE' }),
+  reorderQueue: (items: { id: number; position: number }[]) =>
+    request<{ message: string }>('/queue/reorder', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    }),
+  cancelQueueItem: (id: number) =>
+    request<{ message: string }>(`/queue/${id}/cancel`, { method: 'POST' }),
+  stopQueueItem: (id: number) =>
+    request<{ message: string }>(`/queue/${id}/stop`, { method: 'POST' }),
 };
