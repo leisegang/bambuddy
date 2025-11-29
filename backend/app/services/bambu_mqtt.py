@@ -1,12 +1,15 @@
 import json
 import ssl
 import asyncio
+import logging
 from collections import deque
 from datetime import datetime
 from typing import Callable
 from dataclasses import dataclass, field
 
 import paho.mqtt.client as mqtt
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -114,6 +117,12 @@ class BambuMQTTClient:
         """Process incoming MQTT message from printer."""
         if "print" in payload:
             print_data = payload["print"]
+            # Log when we see gcode_state changes
+            if "gcode_state" in print_data:
+                logger.info(
+                    f"[{self.serial_number}] Received gcode_state: {print_data.get('gcode_state')}, "
+                    f"gcode_file: {print_data.get('gcode_file')}, subtask_name: {print_data.get('subtask_name')}"
+                )
             self._update_state(print_data)
 
     def _update_state(self, data: dict):
@@ -144,6 +153,11 @@ class BambuMQTTClient:
 
         # Temperature data
         temps = {}
+        # Log all temperature-related fields for debugging (only when we have temp data)
+        temp_fields = {k: v for k, v in data.items() if 'temp' in k.lower() or 'nozzle' in k.lower()}
+        if temp_fields and not hasattr(self, '_temp_fields_logged'):
+            logger.info(f"[{self.serial_number}] Temperature fields in MQTT data: {temp_fields}")
+            self._temp_fields_logged = True
         if "bed_temper" in data:
             temps["bed"] = float(data["bed_temper"])
         if "bed_target_temper" in data:
@@ -153,10 +167,20 @@ class BambuMQTTClient:
         if "nozzle_target_temper" in data:
             temps["nozzle_target"] = float(data["nozzle_target_temper"])
         # Second nozzle for dual-extruder printers (H2 series)
+        # Try multiple possible field names used by different firmware versions
         if "nozzle_temper_2" in data:
             temps["nozzle_2"] = float(data["nozzle_temper_2"])
+        elif "right_nozzle_temper" in data:
+            temps["nozzle_2"] = float(data["right_nozzle_temper"])
         if "nozzle_target_temper_2" in data:
             temps["nozzle_2_target"] = float(data["nozzle_target_temper_2"])
+        elif "right_nozzle_target_temper" in data:
+            temps["nozzle_2_target"] = float(data["right_nozzle_target_temper"])
+        # Also check for left nozzle as primary (some H2 models)
+        if "left_nozzle_temper" in data and "nozzle" not in temps:
+            temps["nozzle"] = float(data["left_nozzle_temper"])
+        if "left_nozzle_target_temper" in data and "nozzle_target" not in temps:
+            temps["nozzle_target"] = float(data["left_nozzle_target_temper"])
         if "chamber_temper" in data:
             temps["chamber"] = float(data["chamber_temper"])
         if temps:
@@ -190,6 +214,13 @@ class BambuMQTTClient:
 
         self.state.raw_data = data
 
+        # Log state transitions for debugging
+        if "gcode_state" in data:
+            logger.debug(
+                f"[{self.serial_number}] gcode_state: {self._previous_gcode_state} -> {self.state.state}, "
+                f"file: {self.state.gcode_file}, subtask: {self.state.subtask_name}"
+            )
+
         # Detect print start (state changes TO RUNNING with a file)
         current_file = self.state.gcode_file or self.state.current_print
         is_new_print = (
@@ -205,21 +236,39 @@ class BambuMQTTClient:
             and self._previous_gcode_file is not None
         )
 
+        if is_new_print or is_file_change:
+            # Clear any old HMS errors when a new print starts
+            self.state.hms_errors = []
+
         if (is_new_print or is_file_change) and self.on_print_start:
+            logger.info(
+                f"[{self.serial_number}] PRINT START detected - file: {current_file}, "
+                f"subtask: {self.state.subtask_name}, is_new: {is_new_print}, is_file_change: {is_file_change}"
+            )
             self.on_print_start({
                 "filename": current_file,
                 "subtask_name": self.state.subtask_name,
                 "raw_data": data,
             })
 
-        # Detect print completion
+        # Detect print completion (FINISH = success, FAILED = error, IDLE = aborted)
         if (
             self._previous_gcode_state == "RUNNING"
-            and self.state.state in ("FINISH", "FAILED")
+            and self.state.state in ("FINISH", "FAILED", "IDLE")
             and self.on_print_complete
         ):
+            if self.state.state == "FINISH":
+                status = "completed"
+            elif self.state.state == "FAILED":
+                status = "failed"
+            else:
+                status = "aborted"
+            logger.info(
+                f"[{self.serial_number}] PRINT COMPLETE detected - state: {self.state.state}, "
+                f"status: {status}, file: {self._previous_gcode_file or current_file}"
+            )
             self.on_print_complete({
-                "status": "completed" if self.state.state == "FINISH" else "failed",
+                "status": status,
                 "filename": self._previous_gcode_file or current_file,
                 "raw_data": data,
             })
@@ -256,20 +305,26 @@ class BambuMQTTClient:
         ssl_context.verify_mode = ssl.CERT_NONE
         self._client.tls_set_context(ssl_context)
 
-        self._client.connect_async(self.ip_address, self.MQTT_PORT)
+        # Use shorter keepalive (15s) for faster disconnect detection
+        # Paho considers connection lost after 1.5x keepalive with no response
+        self._client.connect_async(self.ip_address, self.MQTT_PORT, keepalive=15)
         self._client.loop_start()
 
     def start_print(self, filename: str, plate_id: int = 1):
-        """Start a print job on the printer."""
+        """Start a print job on the printer.
+
+        The file should already be uploaded to /cache/ on the printer via FTP.
+        """
         if self._client and self.state.connected:
             # Bambu print command format
+            # Based on: https://github.com/darkorb/bambu-ftp-and-print
             command = {
                 "print": {
+                    "sequence_id": 0,
                     "command": "project_file",
                     "param": f"Metadata/plate_{plate_id}.gcode",
                     "subtask_name": filename,
                     "url": f"ftp://{filename}",
-                    "bed_type": "auto",
                     "timelapse": False,
                     "bed_leveling": True,
                     "flow_cali": True,
@@ -278,7 +333,22 @@ class BambuMQTTClient:
                     "use_ams": True,
                 }
             }
+            logger.info(f"[{self.serial_number}] Sending print command: {json.dumps(command)}")
             self._client.publish(self.topic_publish, json.dumps(command))
+            return True
+        return False
+
+    def stop_print(self) -> bool:
+        """Stop the current print job."""
+        if self._client and self.state.connected:
+            command = {
+                "print": {
+                    "command": "stop",
+                    "sequence_id": "0"
+                }
+            }
+            self._client.publish(self.topic_publish, json.dumps(command))
+            logger.info(f"[{self.serial_number}] Sent stop print command")
             return True
         return False
 
@@ -306,8 +376,7 @@ class BambuMQTTClient:
     def enable_logging(self, enabled: bool = True):
         """Enable or disable MQTT message logging."""
         self._logging_enabled = enabled
-        if not enabled:
-            self._message_log.clear()
+        # Don't clear logs when stopping - user can manually clear with clear_logs()
 
     def get_logs(self) -> list[MQTTLogEntry]:
         """Get all logged MQTT messages."""

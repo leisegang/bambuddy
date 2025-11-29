@@ -1,3 +1,5 @@
+import shutil
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -44,9 +46,9 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
     for setting in db_settings:
         if setting.key in settings_dict:
             # Parse the value based on the expected type
-            if setting.key in ["auto_archive", "save_thumbnails"]:
+            if setting.key in ["auto_archive", "save_thumbnails", "capture_finish_photo"]:
                 settings_dict[setting.key] = setting.value.lower() == "true"
-            elif setting.key == "default_filament_cost":
+            elif setting.key in ["default_filament_cost", "energy_cost_per_kwh"]:
                 settings_dict[setting.key] = float(setting.value)
             else:
                 settings_dict[setting.key] = setting.value
@@ -87,3 +89,13 @@ async def reset_settings(db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     return DEFAULT_SETTINGS
+
+
+@router.get("/check-ffmpeg")
+async def check_ffmpeg():
+    """Check if ffmpeg is installed and available."""
+    ffmpeg_path = shutil.which("ffmpeg")
+    return {
+        "installed": ffmpeg_path is not None,
+        "path": ffmpeg_path,
+    }

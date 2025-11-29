@@ -12,6 +12,7 @@ from sqlalchemy import select, and_, or_
 from backend.app.core.config import settings
 from backend.app.models.archive import PrintArchive
 from backend.app.models.printer import Printer
+from backend.app.models.filament import Filament
 
 
 class ThreeMFParser:
@@ -27,6 +28,7 @@ class ThreeMFParser:
             with zipfile.ZipFile(self.file_path, "r") as zf:
                 self._parse_slice_info(zf)
                 self._parse_project_settings(zf)
+                self._parse_gcode_header(zf)
                 self._parse_3dmodel(zf)
                 self._extract_thumbnail(zf)
 
@@ -96,6 +98,27 @@ class ThreeMFParser:
                     self._extract_print_settings(data)
                 except json.JSONDecodeError:
                     pass
+        except Exception:
+            pass
+
+    def _parse_gcode_header(self, zf: zipfile.ZipFile):
+        """Parse G-code file header for total layer count."""
+        import re
+        try:
+            # Look for plate_1.gcode or similar
+            gcode_files = [f for f in zf.namelist() if f.endswith('.gcode')]
+            if not gcode_files:
+                return
+
+            # Read first 2KB of G-code (header contains the layer count)
+            gcode_path = gcode_files[0]
+            with zf.open(gcode_path) as f:
+                header = f.read(2048).decode('utf-8', errors='ignore')
+
+            # Look for "; total layer number: XX" pattern
+            match = re.search(r';\s*total\s+layer\s+number[:\s]+(\d+)', header, re.IGNORECASE)
+            if match:
+                self.metadata["total_layers"] = int(match.group(1))
         except Exception:
             pass
 
@@ -618,6 +641,25 @@ class ArchiveService:
         started_at = datetime.now() if status == "printing" else None
         completed_at = datetime.now() if status in ("completed", "failed", "archived") else None
 
+        # Calculate cost based on filament usage and type
+        cost = None
+        filament_grams = metadata.get("filament_used_grams")
+        filament_type = metadata.get("filament_type")
+        if filament_grams and filament_type:
+            # For multi-material prints, use the first filament type for cost calculation
+            primary_type = filament_type.split(",")[0].strip()
+            # Look up filament cost_per_kg from database
+            filament_result = await self.db.execute(
+                select(Filament).where(Filament.type == primary_type).limit(1)
+            )
+            filament = filament_result.scalar_one_or_none()
+            if filament:
+                cost = round((filament_grams / 1000) * filament.cost_per_kg, 2)
+            else:
+                # Default cost_per_kg if filament type not found
+                default_cost_per_kg = 25.0
+                cost = round((filament_grams / 1000) * default_cost_per_kg, 2)
+
         # Create archive record
         archive = PrintArchive(
             printer_id=printer_id,
@@ -632,6 +674,7 @@ class ArchiveService:
             filament_type=metadata.get("filament_type"),
             filament_color=metadata.get("filament_color"),
             layer_height=metadata.get("layer_height"),
+            total_layers=metadata.get("total_layers"),
             nozzle_diameter=metadata.get("nozzle_diameter"),
             bed_temperature=metadata.get("bed_temperature"),
             nozzle_temperature=metadata.get("nozzle_temperature"),
@@ -640,6 +683,7 @@ class ArchiveService:
             status=status,
             started_at=started_at,
             completed_at=completed_at,
+            cost=cost,
             extra_data=metadata,
         )
 

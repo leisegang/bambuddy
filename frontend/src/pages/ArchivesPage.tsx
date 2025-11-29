@@ -50,6 +50,8 @@ import { CalendarView } from '../components/CalendarView';
 import { QRCodeModal } from '../components/QRCodeModal';
 import { PhotoGalleryModal } from '../components/PhotoGalleryModal';
 import { ProjectPageModal } from '../components/ProjectPageModal';
+import { TimelapseViewer } from '../components/TimelapseViewer';
+import { AddToQueueModal } from '../components/AddToQueueModal';
 import { useToast } from '../contexts/ToastContext';
 
 function formatFileSize(bytes: number): string {
@@ -98,6 +100,7 @@ function ArchiveCard({
   const [showQRCode, setShowQRCode] = useState(false);
   const [showPhotos, setShowPhotos] = useState(false);
   const [showProjectPage, setShowProjectPage] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const timelapseScanMutation = useMutation({
@@ -146,6 +149,11 @@ function ArchiveCard({
       label: 'Print',
       icon: <Printer className="w-4 h-4" />,
       onClick: () => setShowReprint(true),
+    },
+    {
+      label: 'Schedule',
+      icon: <Calendar className="w-4 h-4" />,
+      onClick: () => setShowSchedule(true),
     },
     {
       label: 'Open in Bambu Studio',
@@ -245,14 +253,15 @@ function ArchiveCard({
 
   return (
     <Card
-      className={`relative flex flex-col ${isSelected ? 'ring-2 ring-bambu-green' : ''}`}
+      className={`relative flex flex-col ${isSelected ? 'ring-2 ring-bambu-green' : ''} ${selectionMode ? 'cursor-pointer' : ''}`}
       onContextMenu={handleContextMenu}
+      onClick={selectionMode ? () => onSelect(archive.id) : undefined}
     >
       {/* Selection checkbox */}
       {selectionMode && (
         <button
           className="absolute top-2 left-2 z-10 p-1 rounded bg-black/50 hover:bg-black/70 transition-colors"
-          onClick={() => onSelect(archive.id)}
+          onClick={(e) => { e.stopPropagation(); onSelect(archive.id); }}
         >
           {isSelected ? (
             <CheckSquare className="w-5 h-5 text-bambu-green" />
@@ -374,10 +383,12 @@ function ArchiveCard({
               {archive.filament_used_grams.toFixed(1)}g
             </div>
           )}
-          {archive.layer_height && (
+          {(archive.layer_height || archive.total_layers) && (
             <div className="flex items-center gap-1.5 text-bambu-gray">
               <Layers className="w-3 h-3" />
-              {archive.layer_height}mm
+              {archive.total_layers && <span>{archive.total_layers} layers</span>}
+              {archive.total_layers && archive.layer_height && <span className="text-bambu-gray/50">·</span>}
+              {archive.layer_height && <span>{archive.layer_height}mm</span>}
             </div>
           )}
           {archive.filament_type && (
@@ -565,45 +576,12 @@ function ArchiveCard({
 
       {/* Timelapse Viewer Modal */}
       {showTimelapse && archive.timelapse_path && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-          <div className="relative bg-bambu-dark-secondary rounded-xl max-w-4xl w-full mx-4 overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-bambu-dark-tertiary">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Film className="w-5 h-5 text-bambu-green" />
-                {archive.print_name || archive.filename} - Timelapse
-              </h3>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = api.getArchiveTimelapse(archive.id);
-                    link.download = `${archive.print_name || archive.filename}_timelapse.mp4`;
-                    link.click();
-                  }}
-                >
-                  <Download className="w-4 h-4" />
-                  Download
-                </Button>
-                <button
-                  onClick={() => setShowTimelapse(false)}
-                  className="p-1 hover:bg-bambu-dark-tertiary rounded transition-colors"
-                >
-                  <X className="w-5 h-5 text-bambu-gray" />
-                </button>
-              </div>
-            </div>
-            <div className="p-4">
-              <video
-                src={api.getArchiveTimelapse(archive.id)}
-                controls
-                autoPlay
-                className="w-full rounded-lg"
-              />
-            </div>
-          </div>
-        </div>
+        <TimelapseViewer
+          src={api.getArchiveTimelapse(archive.id)}
+          title={`${archive.print_name || archive.filename} - Timelapse`}
+          downloadFilename={`${archive.print_name || archive.filename}_timelapse.mp4`}
+          onClose={() => setShowTimelapse(false)}
+        />
       )}
 
       {/* QR Code Modal */}
@@ -642,6 +620,14 @@ function ArchiveCard({
           onClose={() => setShowProjectPage(false)}
         />
       )}
+
+      {showSchedule && (
+        <AddToQueueModal
+          archiveId={archive.id}
+          archiveName={archive.print_name || archive.filename}
+          onClose={() => setShowSchedule(false)}
+        />
+      )}
     </Card>
   );
 }
@@ -675,6 +661,7 @@ export function ArchivesPage() {
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [showBatchTag, setShowBatchTag] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -791,7 +778,7 @@ export function ArchivesPage() {
       }
     });
 
-  const selectionMode = selectedIds.size > 0;
+  const selectionMode = isSelectionMode || selectedIds.size > 0;
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {
@@ -813,6 +800,7 @@ export function ArchivesPage() {
 
   const clearSelection = () => {
     setSelectedIds(new Set());
+    setIsSelectionMode(false);
   };
 
   const toggleColor = (color: string) => {
@@ -998,7 +986,7 @@ export function ArchivesPage() {
         </div>
         <div className="flex items-center gap-3">
           {!selectionMode && (
-            <Button variant="secondary" onClick={() => filteredArchives?.length && toggleSelect(filteredArchives[0].id)}>
+            <Button variant="secondary" onClick={() => setIsSelectionMode(true)}>
               <CheckSquare className="w-4 h-4" />
               Select
             </Button>

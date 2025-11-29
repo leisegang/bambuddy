@@ -1,8 +1,11 @@
 from pathlib import Path
 import zipfile
 import io
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -10,6 +13,7 @@ from sqlalchemy import select, func
 from backend.app.core.config import settings
 from backend.app.core.database import get_db
 from backend.app.models.archive import PrintArchive
+from backend.app.models.filament import Filament
 from backend.app.schemas.archive import ArchiveResponse, ArchiveUpdate, ArchiveStats
 from backend.app.services.archive import ArchiveService
 
@@ -64,6 +68,7 @@ def archive_to_response(
         "filament_type": archive.filament_type,
         "filament_color": archive.filament_color,
         "layer_height": archive.layer_height,
+        "total_layers": archive.total_layers,
         "nozzle_diameter": archive.nozzle_diameter,
         "bed_temperature": archive.bed_temperature,
         "nozzle_temperature": archive.nozzle_temperature,
@@ -204,6 +209,17 @@ async def get_archive_stats(db: AsyncSession = Depends(get_db)):
         for printer_key, accs in printer_accuracies.items():
             accuracy_by_printer[printer_key] = round(sum(accs) / len(accs), 1)
 
+    # Energy totals
+    energy_kwh_result = await db.execute(
+        select(func.sum(PrintArchive.energy_kwh))
+    )
+    total_energy_kwh = energy_kwh_result.scalar() or 0
+
+    energy_cost_result = await db.execute(
+        select(func.sum(PrintArchive.energy_cost))
+    )
+    total_energy_cost = energy_cost_result.scalar() or 0
+
     return ArchiveStats(
         total_prints=total_prints,
         successful_prints=successful_prints,
@@ -215,6 +231,8 @@ async def get_archive_stats(db: AsyncSession = Depends(get_db)):
         prints_by_printer=prints_by_printer,
         average_time_accuracy=average_accuracy,
         time_accuracy_by_printer=accuracy_by_printer if accuracy_by_printer else None,
+        total_energy_kwh=round(total_energy_kwh, 3),
+        total_energy_cost=round(total_energy_cost, 2),
     )
 
 
@@ -320,9 +338,46 @@ async def rescan_archive(archive_id: int, db: AsyncSession = Depends(get_db)):
     if metadata.get("designer"):
         archive.designer = metadata["designer"]
 
+    # Calculate cost based on filament usage and type
+    if archive.filament_used_grams and archive.filament_type:
+        primary_type = archive.filament_type.split(",")[0].strip()
+        filament_result = await db.execute(
+            select(Filament).where(Filament.type == primary_type).limit(1)
+        )
+        filament = filament_result.scalar_one_or_none()
+        if filament:
+            archive.cost = round((archive.filament_used_grams / 1000) * filament.cost_per_kg, 2)
+        else:
+            archive.cost = round((archive.filament_used_grams / 1000) * 25.0, 2)
+
     await db.commit()
     await db.refresh(archive)
     return archive
+
+
+@router.post("/recalculate-costs")
+async def recalculate_all_costs(db: AsyncSession = Depends(get_db)):
+    """Recalculate costs for all archives based on filament usage and prices."""
+    result = await db.execute(select(PrintArchive))
+    archives = list(result.scalars().all())
+
+    # Load all filaments for lookup
+    filament_result = await db.execute(select(Filament))
+    filaments = {f.type: f.cost_per_kg for f in filament_result.scalars().all()}
+    default_cost_per_kg = 25.0
+
+    updated = 0
+    for archive in archives:
+        if archive.filament_used_grams and archive.filament_type:
+            primary_type = archive.filament_type.split(",")[0].strip()
+            cost_per_kg = filaments.get(primary_type, default_cost_per_kg)
+            new_cost = round((archive.filament_used_grams / 1000) * cost_per_kg, 2)
+            if archive.cost != new_cost:
+                archive.cost = new_cost
+                updated += 1
+
+    await db.commit()
+    return {"message": f"Recalculated costs for {updated} archives", "updated": updated}
 
 
 @router.post("/rescan-all")
@@ -539,10 +594,17 @@ async def scan_timelapse(
     base_name = Path(archive.filename).stem
 
     # Scan timelapse directory on printer
-    try:
-        files = await list_files_async(printer.ip_address, printer.access_code, "/timelapse/video")
-    except Exception:
-        raise HTTPException(500, "Failed to connect to printer")
+    # Try both /timelapse and /timelapse/video (different printer models use different paths)
+    files = []
+    for timelapse_path in ["/timelapse", "/timelapse/video"]:
+        try:
+            files = await list_files_async(printer.ip_address, printer.access_code, timelapse_path)
+            if files:
+                break
+        except Exception:
+            continue
+    if not files:
+        raise HTTPException(500, "Failed to connect to printer or no timelapse directory found")
 
     # Look for matching timelapse
     matching_file = None
@@ -574,7 +636,12 @@ async def scan_timelapse(
                     # Timelapse is usually created at print end, so compare to completed_at or created_at
                     compare_time = archive.completed_at or archive.created_at
                     if compare_time:
-                        diff = abs(file_time - compare_time)
+                        # Bambu printers use China Standard Time (UTC+8) for filenames
+                        # Try matching with CST offset adjustment
+                        diff_direct = abs(file_time - compare_time)
+                        # Also try with 8-hour offset (CST to UTC-ish local times)
+                        diff_cst_adjusted = abs(file_time - timedelta(hours=8) - compare_time)
+                        diff = min(diff_direct, diff_cst_adjusted)
                         if diff < best_diff:
                             best_diff = diff
                             best_match = f
@@ -584,11 +651,23 @@ async def scan_timelapse(
         if best_match and best_diff < timedelta(hours=2):  # Within 2 hours
             matching_file = best_match
 
+    # Strategy 3: If only one timelapse exists and archive was recently completed, use it
+    # This handles cases where printer clock is wrong or timezone issues exist
+    if not matching_file and len(mp4_files) == 1:
+        from datetime import datetime, timedelta
+        archive_completed = archive.completed_at or archive.created_at
+        if archive_completed:
+            time_since_completion = datetime.now() - archive_completed
+            # If archive was completed within the last hour, assume the single timelapse is for it
+            if time_since_completion < timedelta(hours=1):
+                matching_file = mp4_files[0]
+                logger.info(f"Using single timelapse file as fallback: {mp4_files[0].get('name')}")
+
     if not matching_file:
         return {"status": "not_found", "message": "No matching timelapse found on printer"}
 
-    # Download the timelapse
-    remote_path = f"/timelapse/video/{matching_file['name']}"
+    # Download the timelapse - use the full path from the file listing
+    remote_path = matching_file.get('path') or f"/timelapse/{matching_file['name']}"
     timelapse_data = await download_file_bytes_async(
         printer.ip_address, printer.access_code, remote_path
     )
@@ -1014,6 +1093,7 @@ async def reprint_archive(
     from backend.app.models.printer import Printer
     from backend.app.services.bambu_ftp import upload_file_async
     from backend.app.services.printer_manager import printer_manager
+    from backend.app.main import register_expected_print
 
     # Get archive
     service = ArchiveService(db)
@@ -1049,6 +1129,9 @@ async def reprint_archive(
 
     if not uploaded:
         raise HTTPException(500, "Failed to upload file to printer")
+
+    # Register this as an expected print so we don't create a duplicate archive
+    register_expected_print(printer_id, remote_filename, archive_id)
 
     # Start the print
     started = printer_manager.start_print(printer_id, remote_filename)

@@ -26,6 +26,7 @@ class PrintArchive(Base):
     filament_type: Mapped[str | None] = mapped_column(String(50))
     filament_color: Mapped[str | None] = mapped_column(String(50))
     layer_height: Mapped[float | None] = mapped_column(Float)
+    total_layers: Mapped[int | None] = mapped_column(Integer)
     nozzle_diameter: Mapped[float | None] = mapped_column(Float)
     bed_temperature: Mapped[int | None] = mapped_column(Integer)
     nozzle_temperature: Mapped[int | None] = mapped_column(Integer)
@@ -49,6 +50,10 @@ class PrintArchive(Base):
     cost: Mapped[float | None] = mapped_column(Float)
     photos: Mapped[list | None] = mapped_column(JSON)  # List of photo filenames
     failure_reason: Mapped[str | None] = mapped_column(String(100))  # For failed prints
+
+    # Energy tracking
+    energy_kwh: Mapped[float | None] = mapped_column(Float)  # Energy consumed in kWh
+    energy_cost: Mapped[float | None] = mapped_column(Float)  # Cost of energy consumed
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

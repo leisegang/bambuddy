@@ -153,13 +153,18 @@ class BambuFTPClient:
     def upload_file(self, local_path: Path, remote_path: str) -> bool:
         """Upload a file to the printer."""
         if not self._ftp:
+            logger.warning(f"upload_file: FTP not connected")
             return False
 
         try:
+            file_size = local_path.stat().st_size if local_path.exists() else 0
+            logger.info(f"FTP uploading {local_path} ({file_size} bytes) to {remote_path}")
             with open(local_path, "rb") as f:
                 self._ftp.storbinary(f"STOR {remote_path}", f)
+            logger.info(f"FTP upload complete: {remote_path}")
             return True
-        except Exception:
+        except Exception as e:
+            logger.error(f"FTP upload failed for {remote_path}: {e}")
             return False
 
     def upload_bytes(self, data: bytes, remote_path: str) -> bool:
@@ -298,12 +303,15 @@ async def upload_file_async(
     loop = asyncio.get_event_loop()
 
     def _upload():
+        logger.info(f"FTP connecting to {ip_address} for upload...")
         client = BambuFTPClient(ip_address, access_code)
         if client.connect():
+            logger.info(f"FTP connected to {ip_address}")
             try:
                 return client.upload_file(local_path, remote_path)
             finally:
                 client.disconnect()
+        logger.warning(f"FTP connection failed to {ip_address}")
         return False
 
     return await loop.run_in_executor(None, _upload)

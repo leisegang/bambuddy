@@ -99,6 +99,7 @@ export interface Archive {
   filament_type: string | null;
   filament_color: string | null;
   layer_height: number | null;
+  total_layers: number | null;
   nozzle_diameter: number | null;
   bed_temperature: number | null;
   nozzle_temperature: number | null;
@@ -114,6 +115,8 @@ export interface Archive {
   cost: number | null;
   photos: string[] | null;
   failure_reason: string | null;
+  energy_kwh: number | null;
+  energy_cost: number | null;
   created_at: string;
 }
 
@@ -128,6 +131,8 @@ export interface ArchiveStats {
   prints_by_printer: Record<string, number>;
   average_time_accuracy: number | null;
   time_accuracy_by_printer: Record<string, number> | null;
+  total_energy_kwh: number;
+  total_energy_cost: number;
 }
 
 export interface BulkUploadResult {
@@ -141,8 +146,10 @@ export interface BulkUploadResult {
 export interface AppSettings {
   auto_archive: boolean;
   save_thumbnails: boolean;
+  capture_finish_photo: boolean;
   default_filament_cost: number;
   currency: string;
+  energy_cost_per_kwh: number;
 }
 
 export type AppSettingsUpdate = Partial<AppSettings>;
@@ -230,16 +237,64 @@ export interface SmartPlugUpdate {
   password?: string | null;
 }
 
+export interface SmartPlugEnergy {
+  power: number | null;  // Current watts
+  voltage: number | null;  // Volts
+  current: number | null;  // Amps
+  today: number | null;  // kWh used today
+  yesterday: number | null;  // kWh used yesterday
+  total: number | null;  // Total kWh
+  factor: number | null;  // Power factor (0-1)
+  apparent_power: number | null;  // VA
+  reactive_power: number | null;  // VAr
+}
+
 export interface SmartPlugStatus {
   state: string | null;
   reachable: boolean;
   device_name: string | null;
+  energy: SmartPlugEnergy | null;
 }
 
 export interface SmartPlugTestResult {
   success: boolean;
   state: string | null;
   device_name: string | null;
+}
+
+// Print Queue types
+export interface PrintQueueItem {
+  id: number;
+  printer_id: number;
+  archive_id: number;
+  position: number;
+  scheduled_time: string | null;
+  require_previous_success: boolean;
+  auto_off_after: boolean;
+  status: 'pending' | 'printing' | 'completed' | 'failed' | 'skipped' | 'cancelled';
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+  created_at: string;
+  archive_name?: string | null;
+  archive_thumbnail?: string | null;
+  printer_name?: string | null;
+}
+
+export interface PrintQueueItemCreate {
+  printer_id: number;
+  archive_id: number;
+  scheduled_time?: string | null;
+  require_previous_success?: boolean;
+  auto_off_after?: boolean;
+}
+
+export interface PrintQueueItemUpdate {
+  printer_id?: number;
+  position?: number;
+  scheduled_time?: string | null;
+  require_previous_success?: boolean;
+  auto_off_after?: boolean;
 }
 
 // MQTT Logging types
@@ -490,6 +545,8 @@ export const api = {
     }),
   resetSettings: () =>
     request<AppSettings>('/settings/reset', { method: 'POST' }),
+  checkFfmpeg: () =>
+    request<{ installed: boolean; path: string | null }>('/settings/check-ffmpeg'),
 
   // Cloud
   getCloudStatus: () => request<CloudAuthStatus>('/cloud/status'),
@@ -519,6 +576,7 @@ export const api = {
   // Smart Plugs
   getSmartPlugs: () => request<SmartPlug[]>('/smart-plugs/'),
   getSmartPlug: (id: number) => request<SmartPlug>(`/smart-plugs/${id}`),
+  getSmartPlugByPrinter: (printerId: number) => request<SmartPlug | null>(`/smart-plugs/by-printer/${printerId}`),
   createSmartPlug: (data: SmartPlugCreate) =>
     request<SmartPlug>('/smart-plugs/', {
       method: 'POST',
@@ -544,4 +602,33 @@ export const api = {
       body: JSON.stringify({ ip_address, username, password }),
     }),
 
+  // Print Queue
+  getQueue: (printerId?: number, status?: string) => {
+    const params = new URLSearchParams();
+    if (printerId) params.set('printer_id', String(printerId));
+    if (status) params.set('status', status);
+    return request<PrintQueueItem[]>(`/queue/?${params}`);
+  },
+  getQueueItem: (id: number) => request<PrintQueueItem>(`/queue/${id}`),
+  addToQueue: (data: PrintQueueItemCreate) =>
+    request<PrintQueueItem>('/queue/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateQueueItem: (id: number, data: PrintQueueItemUpdate) =>
+    request<PrintQueueItem>(`/queue/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  removeFromQueue: (id: number) =>
+    request<{ message: string }>(`/queue/${id}`, { method: 'DELETE' }),
+  reorderQueue: (items: { id: number; position: number }[]) =>
+    request<{ message: string }>('/queue/reorder', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    }),
+  cancelQueueItem: (id: number) =>
+    request<{ message: string }>(`/queue/${id}/cancel`, { method: 'POST' }),
+  stopQueueItem: (id: number) =>
+    request<{ message: string }>(`/queue/${id}/stop`, { method: 'POST' }),
 };

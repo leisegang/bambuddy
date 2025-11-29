@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Printer, Archive, BarChart3, Cloud, Settings, Sun, Moon, ChevronLeft, ChevronRight, Keyboard, Github } from 'lucide-react';
+import { Printer, Archive, Calendar, BarChart3, Cloud, Settings, Sun, Moon, ChevronLeft, ChevronRight, Keyboard, Github } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 
 const navItems = [
   { to: '/', icon: Printer, label: 'Printers' },
   { to: '/archives', icon: Archive, label: 'Archives' },
+  { to: '/queue', icon: Calendar, label: 'Queue' },
   { to: '/stats', icon: BarChart3, label: 'Statistics' },
   { to: '/cloud', icon: Cloud, label: 'Cloud Profiles' },
   { to: '/settings', icon: Settings, label: 'Settings' },
@@ -46,13 +47,17 @@ export function Layout() {
           break;
         case '3':
           e.preventDefault();
-          navigate('/stats');
+          navigate('/queue');
           break;
         case '4':
           e.preventDefault();
-          navigate('/cloud');
+          navigate('/stats');
           break;
         case '5':
+          e.preventDefault();
+          navigate('/cloud');
+          break;
+        case '6':
           e.preventDefault();
           navigate('/settings');
           break;

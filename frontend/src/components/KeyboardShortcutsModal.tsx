@@ -9,9 +9,10 @@ const shortcuts = [
   { category: 'Navigation', items: [
     { keys: ['1'], description: 'Go to Printers' },
     { keys: ['2'], description: 'Go to Archives' },
-    { keys: ['3'], description: 'Go to Statistics' },
-    { keys: ['4'], description: 'Go to Cloud Profiles' },
-    { keys: ['5'], description: 'Go to Settings' },
+    { keys: ['3'], description: 'Go to Queue' },
+    { keys: ['4'], description: 'Go to Statistics' },
+    { keys: ['5'], description: 'Go to Cloud Profiles' },
+    { keys: ['6'], description: 'Go to Settings' },
   ]},
   { category: 'Archives', items: [
     { keys: ['/'], description: 'Focus search' },

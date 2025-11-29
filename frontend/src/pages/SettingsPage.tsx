@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Loader2, Check, Plus, Plug } from 'lucide-react';
+import { Save, Loader2, Check, Plus, Plug, AlertTriangle } from 'lucide-react';
 import { api } from '../api/client';
 import type { AppSettings, SmartPlug } from '../api/client';
 import { Card, CardContent, CardHeader } from '../components/Card';
@@ -26,6 +26,11 @@ export function SettingsPage() {
     queryFn: api.getSmartPlugs,
   });
 
+  const { data: ffmpegStatus } = useQuery({
+    queryKey: ['ffmpeg-status'],
+    queryFn: api.checkFfmpeg,
+  });
+
   // Sync local state when settings load
   useEffect(() => {
     if (settings && !localSettings) {
@@ -39,8 +44,10 @@ export function SettingsPage() {
       const changed =
         settings.auto_archive !== localSettings.auto_archive ||
         settings.save_thumbnails !== localSettings.save_thumbnails ||
+        settings.capture_finish_photo !== localSettings.capture_finish_photo ||
         settings.default_filament_cost !== localSettings.default_filament_cost ||
-        settings.currency !== localSettings.currency;
+        settings.currency !== localSettings.currency ||
+        settings.energy_cost_per_kwh !== localSettings.energy_cost_per_kwh;
       setHasChanges(changed);
     }
   }, [settings, localSettings]);
@@ -146,6 +153,36 @@ export function SettingsPage() {
                   <div className="w-11 h-6 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-bambu-green"></div>
                 </label>
               </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white">Capture finish photo</p>
+                  <p className="text-sm text-bambu-gray">
+                    Take a photo from printer camera when print completes
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={localSettings.capture_finish_photo}
+                    onChange={(e) => updateSetting('capture_finish_photo', e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-bambu-green"></div>
+                </label>
+              </div>
+              {localSettings.capture_finish_photo && ffmpegStatus && !ffmpegStatus.installed && (
+                <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="text-yellow-500 font-medium">ffmpeg not installed</p>
+                    <p className="text-bambu-gray mt-1">
+                      Camera capture requires ffmpeg. Install it via{' '}
+                      <code className="bg-bambu-dark-tertiary px-1 rounded">brew install ffmpeg</code> (macOS) or{' '}
+                      <code className="bg-bambu-dark-tertiary px-1 rounded">apt install ffmpeg</code> (Linux).
+                    </p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -185,6 +222,24 @@ export function SettingsPage() {
                   <option value="CAD">CAD ($)</option>
                   <option value="AUD">AUD ($)</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm text-bambu-gray mb-1">
+                  Electricity cost per kWh
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={localSettings.energy_cost_per_kwh}
+                  onChange={(e) =>
+                    updateSetting('energy_cost_per_kwh', parseFloat(e.target.value) || 0)
+                  }
+                  className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white focus:border-bambu-green focus:outline-none"
+                />
+                <p className="text-xs text-bambu-gray mt-1">
+                  Used for tracking energy costs per print via smart plugs
+                </p>
               </div>
             </CardContent>
           </Card>

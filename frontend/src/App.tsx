@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './components/Layout';
 import { PrintersPage } from './pages/PrintersPage';
 import { ArchivesPage } from './pages/ArchivesPage';
+import { QueuePage } from './pages/QueuePage';
 import { StatsPage } from './pages/StatsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { CloudProfilesPage } from './pages/CloudProfilesPage';
@@ -35,6 +36,7 @@ function App() {
                 <Route path="/" element={<Layout />}>
                   <Route index element={<PrintersPage />} />
                   <Route path="archives" element={<ArchivesPage />} />
+                  <Route path="queue" element={<QueuePage />} />
                   <Route path="stats" element={<StatsPage />} />
                   <Route path="cloud" element={<CloudProfilesPage />} />
                   <Route path="settings" element={<SettingsPage />} />
