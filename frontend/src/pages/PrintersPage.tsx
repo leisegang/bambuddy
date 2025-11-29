@@ -24,6 +24,7 @@ import { Button } from '../components/Button';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { FileManagerModal } from '../components/FileManagerModal';
 import { MQTTDebugModal } from '../components/MQTTDebugModal';
+import { HMSErrorModal } from '../components/HMSErrorModal';
 
 function formatTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -88,6 +89,7 @@ function PrinterCard({ printer, hideIfDisconnected }: { printer: Printer; hideIf
   const [showMQTTDebug, setShowMQTTDebug] = useState(false);
   const [showPowerOnConfirm, setShowPowerOnConfirm] = useState(false);
   const [showPowerOffConfirm, setShowPowerOffConfirm] = useState(false);
+  const [showHMSModal, setShowHMSModal] = useState(false);
 
   const { data: status } = useQuery({
     queryKey: ['printerStatus', printer.id],
@@ -173,25 +175,22 @@ function PrinterCard({ printer, hideIfDisconnected }: { printer: Printer; hideIf
             </span>
             {/* HMS Status Indicator */}
             {status?.connected && (
-              <span
-                className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+              <button
+                onClick={() => setShowHMSModal(true)}
+                className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer hover:opacity-80 transition-opacity ${
                   status.hms_errors && status.hms_errors.length > 0
                     ? status.hms_errors.some(e => e.severity <= 2)
                       ? 'bg-red-500/20 text-red-400'
                       : 'bg-orange-500/20 text-orange-400'
                     : 'bg-bambu-green/20 text-bambu-green'
                 }`}
-                title={
-                  status.hms_errors && status.hms_errors.length > 0
-                    ? `${status.hms_errors.length} HMS error(s)`
-                    : 'No HMS errors'
-                }
+                title="Click to view HMS errors"
               >
                 <AlertTriangle className="w-3 h-3" />
                 {status.hms_errors && status.hms_errors.length > 0
                   ? status.hms_errors.length
                   : 'OK'}
-              </span>
+              </button>
             )}
             <div className="relative">
               <Button
@@ -489,6 +488,15 @@ function PrinterCard({ printer, hideIfDisconnected }: { printer: Printer; hideIf
             setShowPowerOffConfirm(false);
           }}
           onCancel={() => setShowPowerOffConfirm(false)}
+        />
+      )}
+
+      {/* HMS Error Modal */}
+      {showHMSModal && (
+        <HMSErrorModal
+          printerName={printer.name}
+          errors={status?.hms_errors || []}
+          onClose={() => setShowHMSModal(false)}
         />
       )}
     </Card>

@@ -236,6 +236,10 @@ class BambuMQTTClient:
             and self._previous_gcode_file is not None
         )
 
+        if is_new_print or is_file_change:
+            # Clear any old HMS errors when a new print starts
+            self.state.hms_errors = []
+
         if (is_new_print or is_file_change) and self.on_print_start:
             logger.info(
                 f"[{self.serial_number}] PRINT START detected - file: {current_file}, "
