@@ -163,6 +163,18 @@ class NotificationService:
         message = f"{printer_name}: Slot {slot} at {remaining_percent}%"
         return title, message
 
+    def _build_maintenance_due_message(
+        self, printer_name: str, maintenance_items: list[dict]
+    ) -> tuple[str, str]:
+        """Build notification message for maintenance due event."""
+        title = "Maintenance Due"
+        lines = [f"{printer_name}:"]
+        for item in maintenance_items:
+            status = "OVERDUE" if item.get("is_due") else "Soon"
+            lines.append(f"• {item['name']} ({status})")
+        message = "\n".join(lines)
+        return title, message
+
     async def send_test_notification(
         self, provider_type: str, config: dict[str, Any]
     ) -> tuple[bool, str]:
@@ -527,6 +539,26 @@ class NotificationService:
             return
 
         title, message = self._build_filament_low_message(printer_name, slot, remaining_percent)
+        await self._send_to_providers(providers, title, message, db)
+
+    async def on_maintenance_due(
+        self,
+        printer_id: int,
+        printer_name: str,
+        maintenance_items: list[dict],
+        db: AsyncSession,
+    ):
+        """Handle maintenance due event - sends notification when maintenance is due or warning."""
+        if not maintenance_items:
+            return
+
+        providers = await self._get_providers_for_event(db, "on_maintenance_due", printer_id)
+        if not providers:
+            logger.info(f"No notification providers configured for maintenance_due event on printer {printer_id}")
+            return
+
+        logger.info(f"Found {len(providers)} providers for maintenance_due: {[p.name for p in providers]}")
+        title, message = self._build_maintenance_due_message(printer_name, maintenance_items)
         await self._send_to_providers(providers, title, message, db)
 
 

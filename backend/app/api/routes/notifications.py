@@ -35,11 +35,13 @@ def _provider_to_dict(provider: NotificationProvider) -> dict:
         "on_print_start": provider.on_print_start,
         "on_print_complete": provider.on_print_complete,
         "on_print_failed": provider.on_print_failed,
+        "on_print_stopped": provider.on_print_stopped,
         "on_print_progress": provider.on_print_progress,
         # Printer status events
         "on_printer_offline": provider.on_printer_offline,
         "on_printer_error": provider.on_printer_error,
         "on_filament_low": provider.on_filament_low,
+        "on_maintenance_due": provider.on_maintenance_due,
         # Quiet hours
         "quiet_hours_enabled": provider.quiet_hours_enabled,
         "quiet_hours_start": provider.quiet_hours_start,

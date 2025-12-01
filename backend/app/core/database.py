@@ -34,7 +34,7 @@ async def get_db() -> AsyncSession:
 
 async def init_db():
     # Import models to register them with SQLAlchemy
-    from backend.app.models import printer, archive, filament, settings, smart_plug, print_queue, notification  # noqa: F401
+    from backend.app.models import printer, archive, filament, settings, smart_plug, print_queue, notification, maintenance  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -87,6 +87,15 @@ async def run_migrations(conn):
     try:
         await conn.execute(text(
             "ALTER TABLE print_archives ADD COLUMN source_3mf_path VARCHAR(500)"
+        ))
+    except Exception:
+        # Column already exists
+        pass
+
+    # Migration: Add on_maintenance_due column to notification_providers
+    try:
+        await conn.execute(text(
+            "ALTER TABLE notification_providers ADD COLUMN on_maintenance_due BOOLEAN DEFAULT 0"
         ))
     except Exception:
         # Column already exists

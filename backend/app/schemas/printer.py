@@ -22,12 +22,14 @@ class PrinterUpdate(BaseModel):
     model: str | None = None
     is_active: bool | None = None
     auto_archive: bool | None = None
+    print_hours_offset: float | None = None
 
 
 class PrinterResponse(PrinterBase):
     id: int
     is_active: bool
     nozzle_count: int = 1  # 1 or 2, auto-detected from MQTT
+    print_hours_offset: float = 0.0
     created_at: datetime
     updated_at: datetime
 

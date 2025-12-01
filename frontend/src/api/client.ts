@@ -376,6 +376,7 @@ export interface NotificationProvider {
   on_printer_offline: boolean;
   on_printer_error: boolean;
   on_filament_low: boolean;
+  on_maintenance_due: boolean;
   // Quiet hours
   quiet_hours_enabled: boolean;
   quiet_hours_start: string | null;
@@ -406,6 +407,7 @@ export interface NotificationProviderCreate {
   on_printer_offline?: boolean;
   on_printer_error?: boolean;
   on_filament_low?: boolean;
+  on_maintenance_due?: boolean;
   // Quiet hours
   quiet_hours_enabled?: boolean;
   quiet_hours_start?: string | null;
@@ -429,6 +431,7 @@ export interface NotificationProviderUpdate {
   on_printer_offline?: boolean;
   on_printer_error?: boolean;
   on_filament_low?: boolean;
+  on_maintenance_due?: boolean;
   // Quiet hours
   quiet_hours_enabled?: boolean;
   quiet_hours_start?: string | null;
@@ -516,6 +519,69 @@ export interface UpdateStatus {
   progress: number;
   message: string;
   error: string | null;
+}
+
+// Maintenance types
+export interface MaintenanceType {
+  id: number;
+  name: string;
+  description: string | null;
+  default_interval_hours: number;
+  icon: string | null;
+  is_system: boolean;
+  created_at: string;
+}
+
+export interface MaintenanceTypeCreate {
+  name: string;
+  description?: string | null;
+  default_interval_hours?: number;
+  icon?: string | null;
+}
+
+export interface MaintenanceStatus {
+  id: number;
+  printer_id: number;
+  printer_name: string;
+  maintenance_type_id: number;
+  maintenance_type_name: string;
+  maintenance_type_icon: string | null;
+  enabled: boolean;
+  interval_hours: number;
+  current_hours: number;
+  hours_since_maintenance: number;
+  hours_until_due: number;
+  is_due: boolean;
+  is_warning: boolean;
+  last_performed_at: string | null;
+}
+
+export interface PrinterMaintenanceOverview {
+  printer_id: number;
+  printer_name: string;
+  total_print_hours: number;
+  maintenance_items: MaintenanceStatus[];
+  due_count: number;
+  warning_count: number;
+}
+
+export interface MaintenanceHistory {
+  id: number;
+  printer_maintenance_id: number;
+  performed_at: string;
+  hours_at_maintenance: number;
+  notes: string | null;
+}
+
+export interface MaintenanceSummary {
+  total_due: number;
+  total_warning: number;
+  printers_with_issues: Array<{
+    printer_id: number;
+    printer_name: string;
+    due_count: number;
+    warning_count: number;
+  }>;
 }
 
 // API functions
@@ -941,4 +1007,40 @@ export const api = {
       method: 'POST',
     }),
   getUpdateStatus: () => request<UpdateStatus>('/updates/status'),
+
+  // Maintenance
+  getMaintenanceTypes: () => request<MaintenanceType[]>('/maintenance/types'),
+  createMaintenanceType: (data: MaintenanceTypeCreate) =>
+    request<MaintenanceType>('/maintenance/types', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateMaintenanceType: (id: number, data: Partial<MaintenanceTypeCreate>) =>
+    request<MaintenanceType>(`/maintenance/types/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deleteMaintenanceType: (id: number) =>
+    request<{ status: string }>(`/maintenance/types/${id}`, { method: 'DELETE' }),
+  getMaintenanceOverview: () => request<PrinterMaintenanceOverview[]>('/maintenance/overview'),
+  getPrinterMaintenance: (printerId: number) =>
+    request<PrinterMaintenanceOverview>(`/maintenance/printers/${printerId}`),
+  updateMaintenanceItem: (itemId: number, data: { custom_interval_hours?: number | null; enabled?: boolean }) =>
+    request<MaintenanceStatus>(`/maintenance/items/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  performMaintenance: (itemId: number, notes?: string) =>
+    request<MaintenanceStatus>(`/maintenance/items/${itemId}/perform`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    }),
+  getMaintenanceHistory: (itemId: number) =>
+    request<MaintenanceHistory[]>(`/maintenance/items/${itemId}/history`),
+  getMaintenanceSummary: () => request<MaintenanceSummary>('/maintenance/summary'),
+  setPrinterHours: (printerId: number, totalHours: number) =>
+    request<{ printer_id: number; total_hours: number; archive_hours: number; offset_hours: number }>(
+      `/maintenance/printers/${printerId}/hours?total_hours=${totalHours}`,
+      { method: 'PATCH' }
+    ),
 };

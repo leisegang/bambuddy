@@ -4,6 +4,7 @@ import { X, Save, Loader2, Send, CheckCircle, XCircle } from 'lucide-react';
 import { api } from '../api/client';
 import type { NotificationProvider, NotificationProviderCreate, NotificationProviderUpdate, ProviderType } from '../api/client';
 import { Button } from './Button';
+import { Toggle } from './Toggle';
 
 interface AddNotificationModalProps {
   provider?: NotificationProvider | null;
@@ -350,15 +351,10 @@ export function AddNotificationModal({ provider, onClose }: AddNotificationModal
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm text-white">Quiet Hours (Do Not Disturb)</label>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={quietHoursEnabled}
-                  onChange={(e) => setQuietHoursEnabled(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-9 h-5 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-bambu-green"></div>
-              </label>
+              <Toggle
+                checked={quietHoursEnabled}
+                onChange={setQuietHoursEnabled}
+              />
             </div>
             {quietHoursEnabled && (
               <div className="grid grid-cols-2 gap-3">

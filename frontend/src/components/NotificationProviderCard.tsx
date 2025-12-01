@@ -6,6 +6,7 @@ import type { NotificationProvider, NotificationProviderUpdate } from '../api/cl
 import { Card, CardContent } from './Card';
 import { Button } from './Button';
 import { ConfirmModal } from './ConfirmModal';
+import { Toggle } from './Toggle';
 
 interface NotificationProviderCardProps {
   provider: NotificationProvider;
@@ -134,6 +135,9 @@ export function NotificationProviderCard({ provider, onEdit }: NotificationProvi
             {provider.on_filament_low && (
               <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded">Low Filament</span>
             )}
+            {provider.on_maintenance_due && (
+              <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded">Maintenance</span>
+            )}
             {provider.quiet_hours_enabled && (
               <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded flex items-center gap-1">
                 <Moon className="w-3 h-3" />
@@ -204,15 +208,10 @@ export function NotificationProviderCard({ provider, onEdit }: NotificationProvi
                   <p className="text-sm text-white">Enabled</p>
                   <p className="text-xs text-bambu-gray">Send notifications from this provider</p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={provider.enabled}
-                    onChange={(e) => updateMutation.mutate({ enabled: e.target.checked })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-9 h-5 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-bambu-green"></div>
-                </label>
+                <Toggle
+                  checked={provider.enabled}
+                  onChange={(checked) => updateMutation.mutate({ enabled: checked })}
+                />
               </div>
 
               {/* Print Lifecycle Events */}
@@ -221,54 +220,34 @@ export function NotificationProviderCard({ provider, onEdit }: NotificationProvi
 
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-white">Print Started</p>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={provider.on_print_start}
-                      onChange={(e) => updateMutation.mutate({ on_print_start: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-bambu-green"></div>
-                  </label>
+                  <Toggle
+                    checked={provider.on_print_start}
+                    onChange={(checked) => updateMutation.mutate({ on_print_start: checked })}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-white">Print Completed</p>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={provider.on_print_complete}
-                      onChange={(e) => updateMutation.mutate({ on_print_complete: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-bambu-green"></div>
-                  </label>
+                  <Toggle
+                    checked={provider.on_print_complete}
+                    onChange={(checked) => updateMutation.mutate({ on_print_complete: checked })}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-white">Print Failed</p>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={provider.on_print_failed}
-                      onChange={(e) => updateMutation.mutate({ on_print_failed: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-bambu-green"></div>
-                  </label>
+                  <Toggle
+                    checked={provider.on_print_failed}
+                    onChange={(checked) => updateMutation.mutate({ on_print_failed: checked })}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-white">Print Stopped</p>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={provider.on_print_stopped}
-                      onChange={(e) => updateMutation.mutate({ on_print_stopped: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-bambu-green"></div>
-                  </label>
+                  <Toggle
+                    checked={provider.on_print_stopped}
+                    onChange={(checked) => updateMutation.mutate({ on_print_stopped: checked })}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -276,15 +255,10 @@ export function NotificationProviderCard({ provider, onEdit }: NotificationProvi
                     <p className="text-sm text-white">Progress Milestones</p>
                     <p className="text-xs text-bambu-gray">Notify at 25%, 50%, 75%</p>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={provider.on_print_progress}
-                      onChange={(e) => updateMutation.mutate({ on_print_progress: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-bambu-green"></div>
-                  </label>
+                  <Toggle
+                    checked={provider.on_print_progress}
+                    onChange={(checked) => updateMutation.mutate({ on_print_progress: checked })}
+                  />
                 </div>
               </div>
 
@@ -294,41 +268,37 @@ export function NotificationProviderCard({ provider, onEdit }: NotificationProvi
 
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-white">Printer Offline</p>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={provider.on_printer_offline}
-                      onChange={(e) => updateMutation.mutate({ on_printer_offline: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-bambu-green"></div>
-                  </label>
+                  <Toggle
+                    checked={provider.on_printer_offline}
+                    onChange={(checked) => updateMutation.mutate({ on_printer_offline: checked })}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-white">Printer Error</p>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={provider.on_printer_error}
-                      onChange={(e) => updateMutation.mutate({ on_printer_error: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-bambu-green"></div>
-                  </label>
+                  <Toggle
+                    checked={provider.on_printer_error}
+                    onChange={(checked) => updateMutation.mutate({ on_printer_error: checked })}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-white">Low Filament</p>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={provider.on_filament_low}
-                      onChange={(e) => updateMutation.mutate({ on_filament_low: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-bambu-green"></div>
-                  </label>
+                  <Toggle
+                    checked={provider.on_filament_low}
+                    onChange={(checked) => updateMutation.mutate({ on_filament_low: checked })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-white">Maintenance Due</p>
+                    <p className="text-xs text-bambu-gray">Notify when maintenance is needed</p>
+                  </div>
+                  <Toggle
+                    checked={provider.on_maintenance_due ?? false}
+                    onChange={(checked) => updateMutation.mutate({ on_maintenance_due: checked })}
+                  />
                 </div>
               </div>
 
@@ -339,15 +309,10 @@ export function NotificationProviderCard({ provider, onEdit }: NotificationProvi
                     <Moon className="w-4 h-4 text-purple-400" />
                     <p className="text-sm text-white">Quiet Hours</p>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={provider.quiet_hours_enabled}
-                      onChange={(e) => updateMutation.mutate({ quiet_hours_enabled: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-bambu-dark-tertiary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-bambu-green"></div>
-                  </label>
+                  <Toggle
+                    checked={provider.quiet_hours_enabled}
+                    onChange={(checked) => updateMutation.mutate({ quiet_hours_enabled: checked })}
+                  />
                 </div>
 
                 {provider.quiet_hours_enabled && (

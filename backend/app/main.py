@@ -54,7 +54,7 @@ from fastapi.responses import FileResponse
 from backend.app.core.database import init_db, async_session
 from sqlalchemy import select, or_
 from backend.app.core.websocket import ws_manager
-from backend.app.api.routes import printers, archives, websocket, filaments, cloud, smart_plugs, print_queue, kprofiles, notifications, spoolman, updates
+from backend.app.api.routes import printers, archives, websocket, filaments, cloud, smart_plugs, print_queue, kprofiles, notifications, spoolman, updates, maintenance
 from backend.app.api.routes import settings as settings_routes
 from backend.app.services.notification_service import notification_service
 from backend.app.services.printer_manager import (
@@ -70,6 +70,7 @@ from backend.app.services.smart_plug_manager import smart_plug_manager
 from backend.app.services.tasmota import tasmota_service
 from backend.app.models.smart_plug import SmartPlug
 from backend.app.services.spoolman import get_spoolman_client, init_spoolman_client, close_spoolman_client
+from backend.app.api.routes.maintenance import _get_printer_maintenance_internal, ensure_default_types
 
 
 # Track active prints: {(printer_id, filename): archive_id}
@@ -864,6 +865,46 @@ async def on_print_complete(printer_id: int, data: dict):
         import logging
         logging.getLogger(__name__).warning(f"Notification on_print_complete failed: {e}")
 
+    # Check for maintenance due and send notifications (only for completed prints)
+    if data.get("status") == "completed":
+        try:
+            async with async_session() as db:
+                from backend.app.models.printer import Printer
+
+                # Get printer name
+                result = await db.execute(
+                    select(Printer).where(Printer.id == printer_id)
+                )
+                printer = result.scalar_one_or_none()
+                printer_name = printer.name if printer else f"Printer {printer_id}"
+
+                # Get maintenance overview for this printer
+                await ensure_default_types(db)
+                overview = await _get_printer_maintenance_internal(printer_id, db, commit=True)
+
+                # Check for any items that are due or have warnings
+                items_needing_attention = [
+                    {
+                        "name": item.maintenance_type_name,
+                        "is_due": item.is_due,
+                        "is_warning": item.is_warning,
+                    }
+                    for item in overview.maintenance_items
+                    if item.enabled and (item.is_due or item.is_warning)
+                ]
+
+                if items_needing_attention:
+                    await notification_service.on_maintenance_due(
+                        printer_id, printer_name, items_needing_attention, db
+                    )
+                    logger.info(
+                        f"Sent maintenance notification for printer {printer_id}: "
+                        f"{len(items_needing_attention)} items need attention"
+                    )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Maintenance notification check failed: {e}")
+
     # Update queue item if this was a scheduled print
     try:
         async with async_session() as db:
@@ -979,6 +1020,7 @@ app.include_router(kprofiles.router, prefix=app_settings.api_prefix)
 app.include_router(notifications.router, prefix=app_settings.api_prefix)
 app.include_router(spoolman.router, prefix=app_settings.api_prefix)
 app.include_router(updates.router, prefix=app_settings.api_prefix)
+app.include_router(maintenance.router, prefix=app_settings.api_prefix)
 app.include_router(websocket.router, prefix=app_settings.api_prefix)
 
 

@@ -32,6 +32,7 @@ class NotificationProvider(Base):
     on_printer_offline = Column(Boolean, default=False)
     on_printer_error = Column(Boolean, default=False)  # AMS issues, etc.
     on_filament_low = Column(Boolean, default=False)
+    on_maintenance_due = Column(Boolean, default=False)  # Maintenance reminder
 
     # Quiet hours (do not disturb)
     quiet_hours_enabled = Column(Boolean, default=False)

@@ -16,7 +16,9 @@ import {
   Power,
   PowerOff,
   Zap,
+  Wrench,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import type { Printer, PrinterCreate } from '../api/client';
 import { Card, CardContent } from '../components/Card';
@@ -82,8 +84,22 @@ function CoverImage({ url, printName }: { url: string | null; printName?: string
   );
 }
 
-function PrinterCard({ printer, hideIfDisconnected }: { printer: Printer; hideIfDisconnected?: boolean }) {
+interface PrinterMaintenanceInfo {
+  due_count: number;
+  warning_count: number;
+}
+
+function PrinterCard({
+  printer,
+  hideIfDisconnected,
+  maintenanceInfo
+}: {
+  printer: Printer;
+  hideIfDisconnected?: boolean;
+  maintenanceInfo?: PrinterMaintenanceInfo;
+}) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFileManager, setShowFileManager] = useState(false);
@@ -192,6 +208,29 @@ function PrinterCard({ printer, hideIfDisconnected }: { printer: Printer; hideIf
                 <AlertTriangle className="w-3 h-3" />
                 {status.hms_errors && status.hms_errors.length > 0
                   ? status.hms_errors.length
+                  : 'OK'}
+              </button>
+            )}
+            {/* Maintenance Status Indicator - always show */}
+            {maintenanceInfo && (
+              <button
+                onClick={() => navigate('/maintenance')}
+                className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer hover:opacity-80 transition-opacity ${
+                  maintenanceInfo.due_count > 0
+                    ? 'bg-red-500/20 text-red-400'
+                    : maintenanceInfo.warning_count > 0
+                    ? 'bg-orange-500/20 text-orange-400'
+                    : 'bg-bambu-green/20 text-bambu-green'
+                }`}
+                title={
+                  maintenanceInfo.due_count > 0 || maintenanceInfo.warning_count > 0
+                    ? `${maintenanceInfo.due_count > 0 ? `${maintenanceInfo.due_count} maintenance due` : ''}${maintenanceInfo.due_count > 0 && maintenanceInfo.warning_count > 0 ? ', ' : ''}${maintenanceInfo.warning_count > 0 ? `${maintenanceInfo.warning_count} due soon` : ''} - Click to view`
+                    : 'All maintenance up to date - Click to view'
+                }
+              >
+                <Wrench className="w-3 h-3" />
+                {maintenanceInfo.due_count > 0 || maintenanceInfo.warning_count > 0
+                  ? maintenanceInfo.due_count + maintenanceInfo.warning_count
                   : 'OK'}
               </button>
             )}
@@ -674,6 +713,25 @@ export function PrintersPage() {
     queryFn: api.getPrinters,
   });
 
+  // Fetch maintenance overview for all printers to show badges
+  const { data: maintenanceOverview } = useQuery({
+    queryKey: ['maintenanceOverview'],
+    queryFn: api.getMaintenanceOverview,
+    staleTime: 60 * 1000, // 1 minute
+  });
+
+  // Create a map of printer_id -> maintenance info for quick lookup
+  const maintenanceByPrinter = maintenanceOverview?.reduce(
+    (acc, overview) => {
+      acc[overview.printer_id] = {
+        due_count: overview.due_count,
+        warning_count: overview.warning_count,
+      };
+      return acc;
+    },
+    {} as Record<number, PrinterMaintenanceInfo>
+  ) || {};
+
   const addMutation = useMutation({
     mutationFn: api.createPrinter,
     onSuccess: () => {
@@ -727,7 +785,12 @@ export function PrintersPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {printers?.map((printer) => (
-            <PrinterCard key={printer.id} printer={printer} hideIfDisconnected={hideDisconnected} />
+            <PrinterCard
+              key={printer.id}
+              printer={printer}
+              hideIfDisconnected={hideDisconnected}
+              maintenanceInfo={maintenanceByPrinter[printer.id]}
+            />
           ))}
         </div>
       )}

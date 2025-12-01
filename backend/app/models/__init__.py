@@ -3,5 +3,15 @@ from backend.app.models.archive import PrintArchive
 from backend.app.models.filament import Filament
 from backend.app.models.settings import Settings
 from backend.app.models.smart_plug import SmartPlug
+from backend.app.models.maintenance import MaintenanceType, PrinterMaintenance, MaintenanceHistory
 
-__all__ = ["Printer", "PrintArchive", "Filament", "Settings", "SmartPlug"]
+__all__ = [
+    "Printer",
+    "PrintArchive",
+    "Filament",
+    "Settings",
+    "SmartPlug",
+    "MaintenanceType",
+    "PrinterMaintenance",
+    "MaintenanceHistory",
+]

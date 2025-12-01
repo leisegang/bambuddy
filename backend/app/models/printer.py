@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, func
+from sqlalchemy import String, Boolean, DateTime, Float, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.core.database import Base
@@ -17,6 +17,7 @@ class Printer(Base):
     nozzle_count: Mapped[int] = mapped_column(default=1)  # 1 or 2, auto-detected from MQTT
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     auto_archive: Mapped[bool] = mapped_column(Boolean, default=True)
+    print_hours_offset: Mapped[float] = mapped_column(Float, default=0.0)  # Baseline hours to add
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
     )
@@ -34,8 +35,12 @@ class Printer(Base):
     notification_providers: Mapped[list["NotificationProvider"]] = relationship(
         back_populates="printer"
     )
+    maintenance_items: Mapped[list["PrinterMaintenance"]] = relationship(
+        back_populates="printer", cascade="all, delete-orphan"
+    )
 
 
 from backend.app.models.archive import PrintArchive  # noqa: E402
 from backend.app.models.smart_plug import SmartPlug  # noqa: E402
 from backend.app.models.notification import NotificationProvider  # noqa: E402
+from backend.app.models.maintenance import PrinterMaintenance  # noqa: E402

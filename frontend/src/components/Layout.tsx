@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Printer, Archive, Calendar, BarChart3, Cloud, Settings, Sun, Moon, ChevronLeft, ChevronRight, Keyboard, Github, GripVertical, ArrowUpCircle, type LucideIcon } from 'lucide-react';
+import { Printer, Archive, Calendar, BarChart3, Cloud, Settings, Sun, Moon, ChevronLeft, ChevronRight, Keyboard, Github, GripVertical, ArrowUpCircle, Wrench, type LucideIcon } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { useQuery } from '@tanstack/react-query';
@@ -19,6 +19,7 @@ export const defaultNavItems: NavItem[] = [
   { id: 'queue', to: '/queue', icon: Calendar, label: 'Queue' },
   { id: 'stats', to: '/stats', icon: BarChart3, label: 'Statistics' },
   { id: 'profiles', to: '/profiles', icon: Cloud, label: 'Profiles' },
+  { id: 'maintenance', to: '/maintenance', icon: Wrench, label: 'Maintenance' },
   { id: 'settings', to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
