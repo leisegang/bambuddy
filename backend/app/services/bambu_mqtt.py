@@ -347,6 +347,17 @@ class BambuMQTTClient:
             logger.info(f"[{self.serial_number}] Received system data: {system_data}")
             self._handle_system_response(system_data)
 
+        # Parse WiFi signal at top level (some printers send it here)
+        if "wifi_signal" in payload:
+            wifi_signal = payload["wifi_signal"]
+            if isinstance(wifi_signal, (int, float)):
+                self.state.wifi_signal = int(wifi_signal)
+            elif isinstance(wifi_signal, str):
+                try:
+                    self.state.wifi_signal = int(wifi_signal.replace("dBm", "").strip())
+                except ValueError:
+                    pass
+
         if "print" in payload:
             print_data = payload["print"]
 
@@ -1220,8 +1231,8 @@ class BambuMQTTClient:
         # Parse WiFi signal strength (dBm)
         if "wifi_signal" in data:
             wifi_signal = data["wifi_signal"]
+            logger.info(f"[{self.serial_number}] wifi_signal received: {wifi_signal}")
             if isinstance(wifi_signal, (int, float)):
-                # Convert string dBm to int (e.g., "-52dBm" -> -52)
                 self.state.wifi_signal = int(wifi_signal)
             elif isinstance(wifi_signal, str):
                 # Handle string format like "-52dBm"

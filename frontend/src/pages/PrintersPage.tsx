@@ -4,6 +4,7 @@ import {
   Plus,
   Wifi,
   WifiOff,
+  Signal,
   Thermometer,
   Clock,
   MoreVertical,
@@ -35,6 +36,15 @@ function formatTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
+function getWifiStrength(rssi: number | null | undefined): { label: string; color: string; bars: number } {
+  if (rssi == null) return { label: '', color: 'text-bambu-gray', bars: 0 };
+  if (rssi >= -50) return { label: 'Excellent', color: 'text-bambu-green', bars: 4 };
+  if (rssi >= -60) return { label: 'Good', color: 'text-bambu-green', bars: 3 };
+  if (rssi >= -70) return { label: 'Fair', color: 'text-yellow-400', bars: 2 };
+  if (rssi >= -80) return { label: 'Weak', color: 'text-orange-400', bars: 1 };
+  return { label: 'Very weak', color: 'text-red-400', bars: 1 };
 }
 
 function CoverImage({ url, printName }: { url: string | null; printName?: string }) {
@@ -118,6 +128,15 @@ function PrinterCard({
     refetchInterval: 30000, // Fallback polling, WebSocket handles real-time
   });
 
+  // Cache WiFi signal to prevent it disappearing on updates
+  const [cachedWifiSignal, setCachedWifiSignal] = useState<number | null>(null);
+  useEffect(() => {
+    if (status?.wifi_signal != null) {
+      setCachedWifiSignal(status.wifi_signal);
+    }
+  }, [status?.wifi_signal]);
+  const wifiSignal = status?.wifi_signal ?? cachedWifiSignal;
+
   // Fetch smart plug for this printer
   const { data: smartPlug } = useQuery({
     queryKey: ['smartPlugByPrinter', printer.id],
@@ -190,6 +209,7 @@ function PrinterCard({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Connection status badge */}
             <span
               className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
                 status?.connected
@@ -204,6 +224,26 @@ function PrinterCard({
               )}
               {status?.connected ? 'Connected' : 'Offline'}
             </span>
+            {/* WiFi signal strength indicator */}
+            {status?.connected && wifiSignal != null && (
+              <span
+                className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                  wifiSignal >= -50
+                    ? 'bg-bambu-green/20 text-bambu-green'
+                    : wifiSignal >= -60
+                    ? 'bg-bambu-green/20 text-bambu-green'
+                    : wifiSignal >= -70
+                    ? 'bg-amber-500/20 text-amber-600'
+                    : wifiSignal >= -80
+                    ? 'bg-orange-500/20 text-orange-600'
+                    : 'bg-red-500/20 text-red-600'
+                }`}
+                title={`WiFi: ${wifiSignal} dBm - ${getWifiStrength(wifiSignal).label}`}
+              >
+                <Signal className="w-3 h-3" />
+                {wifiSignal}dBm
+              </span>
+            )}
             {/* HMS Status Indicator */}
             {status?.connected && (
               <button

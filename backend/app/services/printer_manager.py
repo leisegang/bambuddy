@@ -287,6 +287,8 @@ def printer_state_to_dict(state: PrinterState, printer_id: int | None = None) ->
         "ams_status_main": state.ams_status_main,
         "ams_status_sub": state.ams_status_sub,
         "tray_now": state.tray_now,
+        # WiFi signal strength
+        "wifi_signal": state.wifi_signal,
     }
     # Add cover URL if there's an active print and printer_id is provided
     if printer_id and state.state == "RUNNING" and state.gcode_file:
