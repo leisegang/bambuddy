@@ -4,8 +4,7 @@ FROM node:22-bookworm-slim AS frontend-builder
 WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
-RUN npm ci --ignore-scripts && \
-    npm rebuild esbuild
+RUN npm ci
 
 COPY frontend/ ./
 RUN npm run build
