@@ -685,7 +685,13 @@ async def import_backup(
 
                 import logging
                 logger = logging.getLogger(__name__)
-                logger.info(f"Restore: Creating printer {printer_data['name']}, has_access_code={has_access_code}, is_active={is_active_from_backup if has_access_code else False}")
+                logger.info(f"Restore: Creating printer {printer_data['name']}")
+                logger.info(f"  - access_code in backup: {'YES' if 'access_code' in printer_data else 'NO'}")
+                logger.info(f"  - access_code value: {access_code[:4] + '...' if access_code and len(access_code) > 4 else access_code}")
+                logger.info(f"  - has_access_code (valid): {has_access_code}")
+                logger.info(f"  - is_active in backup: {printer_data.get('is_active')} (type: {type(printer_data.get('is_active')).__name__})")
+                logger.info(f"  - is_active_from_backup (converted): {is_active_from_backup}")
+                logger.info(f"  - final is_active: {is_active_from_backup if has_access_code else False}")
 
                 printer = Printer(
                     name=printer_data["name"],
@@ -832,21 +838,26 @@ async def import_backup(
 
     await db.commit()
 
+    import logging
+    logger = logging.getLogger(__name__)
+
     # If printers were in the backup (restored, updated, or skipped), reconnect all active printers
     # This ensures connections are re-established after restore, even if printers were skipped
     if "printers" in backup:
-        # Fetch all active printers and connect them
+        # Need fresh query after commit to get proper IDs for newly created printers
         result = await db.execute(
             select(Printer).where(Printer.is_active == True)
         )
         active_printers = result.scalars().all()
-        import logging
-        logger = logging.getLogger(__name__)
         logger.info(f"Restore: Found {len(active_printers)} active printers to reconnect")
         for printer in active_printers:
-            logger.info(f"Restore: Reconnecting printer {printer.name} (id={printer.id}, ip={printer.ip_address})")
+            logger.info(f"Restore: Reconnecting printer {printer.name} (id={printer.id}, ip={printer.ip_address}, access_code={'SET' if printer.access_code and printer.access_code != 'CHANGE_ME' else 'NOT SET'})")
             # This will disconnect existing connection (if any) and reconnect
-            await printer_manager.connect_printer(printer)
+            try:
+                connected = await printer_manager.connect_printer(printer)
+                logger.info(f"Restore: Printer {printer.name} connection result: {connected}")
+            except Exception as e:
+                logger.error(f"Restore: Failed to connect printer {printer.name}: {e}")
 
     # If settings were restored, check if Spoolman needs to be reconnected
     if "settings" in backup:
