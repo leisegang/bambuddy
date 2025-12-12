@@ -2,6 +2,38 @@
 
 All notable changes to Bambuddy will be documented in this file.
 
+## [0.1.5b6] - 2025-12-12
+
+  Notifications:
+  - Separate AMS and AMS-HT notification switches (one per device type)
+  - Fix notification variables not showing (duration, filament, estimated_time)
+  - Add fallback values for empty notification variables ("Unknown" instead of blank)
+
+  Settings:
+  - Fix API keys badge count only showing after visiting tab
+  - Move External Links card to third column above Updates
+  - Add Release Notes modal for viewing full notes before updating
+
+  Statistics:
+  - Fix filament usage trends not showing (wrong API parameters)
+  - Move dashboard controls (Hidden, Reset Layout) to header row
+
+  Camera:
+  - Fix ffmpeg processes not killed when closing webcam window
+  - Add /camera/stop endpoint with POST support for sendBeacon
+  - Track active streams and proper cleanup on disconnect
+
+  Documentation:
+  - Update README with missing features (camera streaming, AMS/AMS-HT monitoring,
+    chamber control, printer control, AI detection, calibration, energy tracking,
+    database backup/restore, system info dashboard)
+
+## [0.1.5b5] - 2025-12-11
+
+### Added
+- Anonymous telemetry system with opt-out support
+- System info page with database and resource statistics
+
 ## [0.1.5b4] - 2025-12-11
 
 New Features
