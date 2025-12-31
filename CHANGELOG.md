@@ -2,6 +2,23 @@
 
 All notable changes to Bambuddy will be documented in this file.
 
+## [0.1.6b3] - 2025-12-31
+
+### Added
+- **Customizable Theme System** - Comprehensive theme customization with independent settings for dark and light modes:
+  - **Style**: Classic (clean shadows), Glow (accent-colored glow effects), Vibrant (dramatic deep shadows)
+  - **Background**: Neutral, Warm, Cool (light mode) + OLED, Slate, Forest (dark mode only)
+  - **Accent Colors**: Green, Teal, Blue, Orange, Purple, Red
+  - All combinations work together (e.g., Glow style + Forest background + Teal accent)
+  - Settings sync across devices via database
+  - Live preview in Settings → Appearance
+
+### Fixed
+- **Printer hour counter** - Fixed bug in printer's hour counter display
+
+### Changed
+- **Sidebar power switch** - Added confirmation modal to sidebar's quick power switch
+
 ## [0.1.6b2] - 2025-12-29
 
 ### Added

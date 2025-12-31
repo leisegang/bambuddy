@@ -544,6 +544,14 @@ export interface AppSettings {
   default_printer_id: number | null;
   // Telemetry
   telemetry_enabled: boolean;
+  // Dark mode theme settings
+  dark_style: 'classic' | 'glow' | 'vibrant';
+  dark_background: 'neutral' | 'warm' | 'cool' | 'oled' | 'slate' | 'forest';
+  dark_accent: 'green' | 'teal' | 'blue' | 'orange' | 'purple' | 'red';
+  // Light mode theme settings
+  light_style: 'classic' | 'glow' | 'vibrant';
+  light_background: 'neutral' | 'warm' | 'cool';
+  light_accent: 'green' | 'teal' | 'blue' | 'orange' | 'purple' | 'red';
 }
 
 export type AppSettingsUpdate = Partial<AppSettings>;

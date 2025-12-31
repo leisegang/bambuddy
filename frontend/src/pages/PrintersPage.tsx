@@ -43,9 +43,9 @@ import { AMSHistoryModal } from '../components/AMSHistoryModal';
 
 // Nozzle side indicators (Bambu Lab style - square badge with L/R)
 function NozzleBadge({ side }: { side: 'L' | 'R' }) {
-  const { theme } = useTheme();
-  // Light theme: #e7f5e9 (light green), Dark theme: #1a4d2e (dark green)
-  const bgColor = theme === 'dark' ? '#1a4d2e' : '#e7f5e9';
+  const { mode } = useTheme();
+  // Light mode: #e7f5e9 (light green), Dark mode: #1a4d2e (dark green)
+  const bgColor = mode === 'dark' ? '#1a4d2e' : '#e7f5e9';
   return (
     <span
       className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded"
