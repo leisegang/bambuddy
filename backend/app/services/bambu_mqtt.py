@@ -733,6 +733,7 @@ class BambuMQTTClient:
                 )
 
             # Parse tray_now from AMS dict - this is the currently loaded tray global ID
+            # Note: tray_tar is also available but on H2D it's just slot number (0-3), not global ID
             if "tray_now" in ams_data:
                 raw_tray_now = ams_data["tray_now"]
                 # Convert string to int if needed
@@ -775,33 +776,61 @@ class BambuMQTTClient:
                         active_ext = self.state.active_extruder  # 0=right, 1=left
                         ams_map = self.state.ams_extruder_map  # {ams_id: extruder_id}
 
-                        # Find the AMS connected to the active extruder
-                        active_ams_id = None
-                        for ams_id_str, ext_id in ams_map.items():
-                            if ext_id == active_ext:
-                                try:
-                                    active_ams_id = int(ams_id_str)
-                                except ValueError:
-                                    pass
-                                break
-
-                        if active_ams_id is not None:
-                            # Calculate global tray ID using the active AMS
-                            global_tray_id = active_ams_id * 4 + parsed_tray_now
-                            logger.info(
-                                f"[{self.serial_number}] H2D tray_now disambiguation: "
-                                f"slot {parsed_tray_now} + active_extruder {active_ext} -> AMS {active_ams_id} -> global ID {global_tray_id}"
-                            )
-                            self.state.tray_now = global_tray_id
-                        else:
-                            # No AMS found for active extruder - check if we already have a resolved global ID
-                            current_tray = self.state.tray_now
-                            if current_tray > 3 and current_tray != 255 and (current_tray % 4) == parsed_tray_now:
-                                # Current tray_now is already a valid global ID that matches this slot
+                        # First, check if current tray_now is already a valid global ID
+                        # that matches this slot AND is connected to the active extruder
+                        current_tray = self.state.tray_now
+                        if current_tray > 3 and current_tray != 255 and (current_tray % 4) == parsed_tray_now:
+                            current_ams = current_tray // 4
+                            current_ams_extruder = ams_map.get(str(current_ams))
+                            if current_ams_extruder == active_ext:
+                                # Current tray is valid, matches slot, and on correct extruder - keep it
                                 logger.debug(
                                     f"[{self.serial_number}] H2D tray_now: keeping existing global ID {current_tray} "
-                                    f"(matches incoming slot {parsed_tray_now})"
+                                    f"(slot {parsed_tray_now}, AMS {current_ams} on extruder {active_ext})"
                                 )
+                                # Don't update tray_now - it's already correct
+                                pass
+                            else:
+                                # Current AMS is on wrong extruder - need to find correct AMS
+                                active_ams_id = None
+                                for ams_id_str, ext_id in ams_map.items():
+                                    if ext_id == active_ext:
+                                        try:
+                                            active_ams_id = int(ams_id_str)
+                                        except ValueError:
+                                            pass
+                                        break
+                                if active_ams_id is not None:
+                                    global_tray_id = active_ams_id * 4 + parsed_tray_now
+                                    logger.info(
+                                        f"[{self.serial_number}] H2D tray_now disambiguation: "
+                                        f"slot {parsed_tray_now} + active_extruder {active_ext} -> AMS {active_ams_id} -> global ID {global_tray_id}"
+                                    )
+                                    self.state.tray_now = global_tray_id
+                                else:
+                                    logger.warning(
+                                        f"[{self.serial_number}] H2D tray_now: no ams_extruder_map for active_extruder {active_ext}"
+                                    )
+                                    self.state.tray_now = parsed_tray_now
+                        else:
+                            # No valid current tray - find an AMS connected to the active extruder
+                            active_ams_id = None
+                            for ams_id_str, ext_id in ams_map.items():
+                                if ext_id == active_ext:
+                                    try:
+                                        active_ams_id = int(ams_id_str)
+                                    except ValueError:
+                                        pass
+                                    break
+
+                            if active_ams_id is not None:
+                                # Calculate global tray ID using the active AMS
+                                global_tray_id = active_ams_id * 4 + parsed_tray_now
+                                logger.info(
+                                    f"[{self.serial_number}] H2D tray_now disambiguation: "
+                                    f"slot {parsed_tray_now} + active_extruder {active_ext} -> AMS {active_ams_id} -> global ID {global_tray_id}"
+                                )
+                                self.state.tray_now = global_tray_id
                             else:
                                 # Fallback: use slot as-is
                                 logger.warning(

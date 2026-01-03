@@ -353,11 +353,12 @@ def _load_objects_from_archive(archive, printer_id: int, logger) -> None:
             with open(file_path, "rb") as f:
                 threemf_data = f.read()
             # Extract with positions for UI overlay
-            printable_objects = extract_printable_objects_from_3mf(threemf_data, include_positions=True)
+            printable_objects, bbox_all = extract_printable_objects_from_3mf(threemf_data, include_positions=True)
             if printable_objects:
                 client = printer_manager.get_client(printer_id)
                 if client:
                     client.state.printable_objects = printable_objects
+                    client.state.printable_objects_bbox_all = bbox_all
                     client.state.skipped_objects = []
                     logger.info(f"Loaded {len(printable_objects)} printable objects for printer {printer_id}")
     except Exception as e:
@@ -774,12 +775,15 @@ async def on_print_start(printer_id: int, data: dict):
                     with open(temp_path, "rb") as f:
                         threemf_data = f.read()
                     # Extract with positions for UI overlay
-                    printable_objects = extract_printable_objects_from_3mf(threemf_data, include_positions=True)
+                    printable_objects, bbox_all = extract_printable_objects_from_3mf(
+                        threemf_data, include_positions=True
+                    )
                     if printable_objects:
                         # Store objects in printer state
                         client = printer_manager.get_client(printer_id)
                         if client:
                             client.state.printable_objects = printable_objects
+                            client.state.printable_objects_bbox_all = bbox_all
                             client.state.skipped_objects = []  # Reset skipped objects for new print
                             logger.info(f"Loaded {len(printable_objects)} printable objects for printer {printer_id}")
                 except Exception as e:
