@@ -106,8 +106,10 @@ async def generate_chamber_mjpeg_stream(
 
             # Save frame to buffer for photo capture and track timestamp
             if printer_id is not None:
+                import time
+
                 _last_frames[printer_id] = frame
-                _last_frame_times[printer_id] = asyncio.get_event_loop().time()
+                _last_frame_times[printer_id] = time.time()
 
             # Rate limiting - skip frames if needed to maintain target FPS
             current_time = asyncio.get_event_loop().time()
@@ -276,8 +278,10 @@ async def generate_rtsp_mjpeg_stream(
 
                     # Save frame to buffer for photo capture and track timestamp
                     if printer_id is not None:
+                        import time
+
                         _last_frames[printer_id] = frame
-                        _last_frame_times[printer_id] = asyncio.get_event_loop().time()
+                        _last_frame_times[printer_id] = time.time()
 
                     # Yield frame in MJPEG format
                     yield (
