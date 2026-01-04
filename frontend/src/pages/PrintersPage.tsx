@@ -37,6 +37,7 @@ import {
   Fan,
   Wind,
   AirVent,
+  Minus,
 } from 'lucide-react';
 
 // Custom Skip Objects icon - arrow jumping over boxes
@@ -2236,12 +2237,9 @@ function PrinterCard({
                     }`}
                   >
                     {plugStatus.state || '?'}
-                  </span>
-                )}
-                {/* Power consumption display */}
-                {plugStatus?.energy?.power != null && plugStatus.state === 'ON' && (
-                  <span className="text-xs text-yellow-400 font-medium flex-shrink-0">
-                    {plugStatus.energy.power}W
+                    {plugStatus.state === 'ON' && plugStatus.energy?.power != null && (
+                      <span className="text-yellow-400 ml-1.5">· {plugStatus.energy.power}W</span>
+                    )}
                   </span>
                 )}
               </div>
@@ -3343,6 +3341,11 @@ export function PrintersPage() {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem('printerViewMode') as ViewMode) || 'expanded';
   });
+  // Card size: 1=small, 2=medium, 3=large, 4=xl
+  const [cardSize, setCardSize] = useState<number>(() => {
+    const saved = localStorage.getItem('printerCardSize');
+    return saved ? parseInt(saved, 10) : 2; // Default to medium
+  });
   const queryClient = useQueryClient();
 
   const { data: printers, isLoading } = useQuery({
@@ -3452,6 +3455,25 @@ export function PrintersPage() {
     localStorage.setItem('printerViewMode', newMode);
   };
 
+  const changeCardSize = (delta: number) => {
+    const newSize = Math.max(1, Math.min(4, cardSize + delta));
+    setCardSize(newSize);
+    localStorage.setItem('printerCardSize', String(newSize));
+  };
+
+  // Grid classes based on card size (1=small, 2=medium, 3=large, 4=xl)
+  const getGridClasses = () => {
+    switch (cardSize) {
+      case 1: return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
+      case 2: return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+      case 3: return 'grid-cols-1 md:grid-cols-2';
+      case 4: return 'grid-cols-1 max-w-3xl';
+      default: return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+    }
+  };
+
+  const cardSizeLabels = ['S', 'M', 'L', 'XL'];
+
   // Sort printers based on selected option
   const sortedPrinters = useMemo(() => {
     if (!printers) return [];
@@ -3558,6 +3580,29 @@ export function PrintersPage() {
             )}
           </button>
 
+          {/* Card size control */}
+          <div className="flex items-center gap-1 bg-bambu-dark rounded-lg border border-bambu-dark-tertiary">
+            <button
+              onClick={() => changeCardSize(-1)}
+              disabled={cardSize <= 1}
+              className="p-1.5 rounded-l-lg hover:bg-bambu-dark-tertiary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Smaller cards"
+            >
+              <Minus className="w-4 h-4 text-bambu-gray" />
+            </button>
+            <span className="text-xs text-bambu-gray w-6 text-center font-medium">
+              {cardSizeLabels[cardSize - 1]}
+            </span>
+            <button
+              onClick={() => changeCardSize(1)}
+              disabled={cardSize >= 4}
+              className="p-1.5 rounded-r-lg hover:bg-bambu-dark-tertiary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Larger cards"
+            >
+              <Plus className="w-4 h-4 text-bambu-gray" />
+            </button>
+          </div>
+
           <div className="w-px h-6 bg-bambu-dark-tertiary" />
 
           <label className="flex items-center gap-2 text-sm text-bambu-gray cursor-pointer">
@@ -3642,11 +3687,7 @@ export function PrintersPage() {
                 {location}
                 <span className="text-sm font-normal text-bambu-gray">({locationPrinters.length})</span>
               </h2>
-              <div className={`grid gap-4 ${
-                viewMode === 'compact'
-                  ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
-                  : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-              }`}>
+              <div className={`grid gap-4 ${cardSize >= 3 ? 'gap-6' : ''} ${getGridClasses()}`}>
                 {locationPrinters.map((printer) => (
                   <PrinterCard
                     key={printer.id}
@@ -3670,11 +3711,7 @@ export function PrintersPage() {
         </div>
       ) : (
         /* Regular grid view */
-        <div className={`grid gap-4 ${
-          viewMode === 'compact'
-            ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
-            : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-        }`}>
+        <div className={`grid gap-4 ${cardSize >= 3 ? 'gap-6' : ''} ${getGridClasses()}`}>
           {sortedPrinters.map((printer) => (
             <PrinterCard
               key={printer.id}
