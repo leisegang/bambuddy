@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from logging.handlers import RotatingFileHandler
 
 from fastapi import FastAPI
@@ -513,30 +513,46 @@ async def on_print_start(printer_id: int, data: dict):
         )
         existing_archive = existing.scalar_one_or_none()
         if existing_archive:
-            logger.info(f"Skipping duplicate - already have printing archive {existing_archive.id} for {check_name}")
-            # Track this as the active print
-            _active_prints[(printer_id, existing_archive.filename)] = existing_archive.id
-            # Also set up energy tracking if not already tracked
-            if existing_archive.id not in _print_energy_start:
-                try:
-                    plug_result = await db.execute(select(SmartPlug).where(SmartPlug.printer_id == printer_id))
-                    plug = plug_result.scalar_one_or_none()
-                    if plug:
-                        energy = await tasmota_service.get_energy(plug)
-                        if energy and energy.get("total") is not None:
-                            _print_energy_start[existing_archive.id] = energy["total"]
-                            logger.info(
-                                f"Recorded starting energy for existing archive {existing_archive.id}: {energy['total']} kWh"
-                            )
-                except Exception as e:
-                    logger.warning(f"Failed to record starting energy for existing archive: {e}")
-            # Send notification with archive data (existing archive)
-            if not notification_sent:
-                archive_data = {"print_time_seconds": existing_archive.print_time_seconds}
-                await _send_print_start_notification(printer_id, data, archive_data, logger)
-            # Extract printable objects from the archived 3MF file
-            _load_objects_from_archive(existing_archive, printer_id, logger)
-            return
+            # Check if archive is stale (older than 4 hours) - likely a failed/cancelled print
+            # that didn't get properly updated
+            archive_age = datetime.now(UTC) - existing_archive.created_at.replace(tzinfo=UTC)
+            if archive_age.total_seconds() > 4 * 60 * 60:  # 4 hours
+                logger.warning(
+                    f"Found stale 'printing' archive {existing_archive.id} (age: {archive_age}), "
+                    f"marking as cancelled and creating new archive"
+                )
+                existing_archive.status = "cancelled"
+                existing_archive.failure_reason = "Stale - print likely cancelled or failed without status update"
+                await db.commit()
+                # Fall through to create new archive (don't return)
+                existing_archive = None  # Clear so we don't use stale archive
+            else:
+                logger.info(
+                    f"Skipping duplicate - already have printing archive {existing_archive.id} for {check_name}"
+                )
+                # Track this as the active print
+                _active_prints[(printer_id, existing_archive.filename)] = existing_archive.id
+                # Also set up energy tracking if not already tracked
+                if existing_archive.id not in _print_energy_start:
+                    try:
+                        plug_result = await db.execute(select(SmartPlug).where(SmartPlug.printer_id == printer_id))
+                        plug = plug_result.scalar_one_or_none()
+                        if plug:
+                            energy = await tasmota_service.get_energy(plug)
+                            if energy and energy.get("total") is not None:
+                                _print_energy_start[existing_archive.id] = energy["total"]
+                                logger.info(
+                                    f"Recorded starting energy for existing archive {existing_archive.id}: {energy['total']} kWh"
+                                )
+                    except Exception as e:
+                        logger.warning(f"Failed to record starting energy for existing archive: {e}")
+                # Send notification with archive data (existing archive)
+                if not notification_sent:
+                    archive_data = {"print_time_seconds": existing_archive.print_time_seconds}
+                    await _send_print_start_notification(printer_id, data, archive_data, logger)
+                # Extract printable objects from the archived 3MF file
+                _load_objects_from_archive(existing_archive, printer_id, logger)
+                return
 
         # Build list of possible 3MF filenames to try
         possible_names = []
