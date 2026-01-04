@@ -179,7 +179,7 @@ export function VirtualPrinterSettings() {
               <select
                 value={localModel}
                 onChange={(e) => handleModelChange(e.target.value)}
-                disabled={pendingAction === 'model' || (localEnabled && isRunning)}
+                disabled={pendingAction === 'model'}
                 className="w-full bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-md px-3 py-2 text-white appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed pr-10"
               >
                 {modelsData?.models && Object.entries(modelsData.models)
@@ -193,9 +193,9 @@ export function VirtualPrinterSettings() {
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-bambu-gray pointer-events-none" />
             </div>
             {localEnabled && isRunning && (
-              <p className="text-xs text-yellow-400 mt-2">
-                <AlertTriangle className="w-3 h-3 inline mr-1" />
-                Disable the virtual printer to change the model
+              <p className="text-xs text-bambu-gray mt-2">
+                <Info className="w-3 h-3 inline mr-1" />
+                Changing the model will restart the virtual printer
               </p>
             )}
           </div>
