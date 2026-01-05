@@ -71,12 +71,14 @@ from backend.app.api.routes import (
     settings as settings_routes,
     smart_plugs,
     spoolman,
+    support,
     system,
     updates,
     webhook,
     websocket,
 )
 from backend.app.api.routes.maintenance import _get_printer_maintenance_internal, ensure_default_types
+from backend.app.api.routes.support import init_debug_logging
 from backend.app.core.database import async_session, init_db
 from backend.app.core.websocket import ws_manager
 from backend.app.models.smart_plug import SmartPlug
@@ -1689,6 +1691,9 @@ async def lifespan(app: FastAPI):
     # Startup
     await init_db()
 
+    # Restore debug logging state from previous session
+    await init_debug_logging()
+
     # Set up printer manager callbacks
     loop = asyncio.get_event_loop()
     printer_manager.set_event_loop(loop)
@@ -1810,6 +1815,7 @@ app.include_router(api_keys.router, prefix=app_settings.api_prefix)
 app.include_router(webhook.router, prefix=app_settings.api_prefix)
 app.include_router(ams_history.router, prefix=app_settings.api_prefix)
 app.include_router(system.router, prefix=app_settings.api_prefix)
+app.include_router(support.router, prefix=app_settings.api_prefix)
 app.include_router(websocket.router, prefix=app_settings.api_prefix)
 app.include_router(discovery.router, prefix=app_settings.api_prefix)
 app.include_router(pending_uploads.router, prefix=app_settings.api_prefix)

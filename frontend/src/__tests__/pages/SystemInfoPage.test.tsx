@@ -15,6 +15,11 @@ vi.mock('../../api/client', () => ({
     getSettings: vi.fn().mockResolvedValue({}),
     updateSettings: vi.fn().mockResolvedValue({}),
   },
+  supportApi: {
+    getDebugLoggingState: vi.fn().mockResolvedValue({ enabled: false, enabled_at: null, duration_seconds: null }),
+    setDebugLogging: vi.fn().mockResolvedValue({ enabled: true, enabled_at: new Date().toISOString(), duration_seconds: 0 }),
+    downloadSupportBundle: vi.fn().mockResolvedValue(undefined),
+  },
 }));
 
 // Mock system info response

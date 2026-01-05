@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Printer, Archive, Calendar, BarChart3, Cloud, Settings, Sun, Moon, ChevronLeft, ChevronRight, Keyboard, Github, GripVertical, ArrowUpCircle, Wrench, FolderKanban, X, Menu, Info, Plug, type LucideIcon } from 'lucide-react';
+import { Printer, Archive, Calendar, BarChart3, Cloud, Settings, Sun, Moon, ChevronLeft, ChevronRight, Keyboard, Github, GripVertical, ArrowUpCircle, Wrench, FolderKanban, X, Menu, Info, Plug, Bug, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { SwitchbarPopover } from './SwitchbarPopover';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../api/client';
+import { api, supportApi } from '../api/client';
 import { getIconByName } from './IconPicker';
 import { useIsMobile } from '../hooks/useIsMobile';
 
@@ -117,6 +117,30 @@ export function Layout() {
   });
 
   const hasSwitchbarPlugs = smartPlugs?.some(p => p.show_in_switchbar) ?? false;
+
+  // Check debug logging state
+  const { data: debugLoggingState } = useQuery({
+    queryKey: ['debugLogging'],
+    queryFn: supportApi.getDebugLoggingState,
+    staleTime: 60 * 1000, // 1 minute
+    refetchInterval: 60 * 1000, // Refresh every minute
+  });
+
+  // Calculate debug duration client-side for real-time updates
+  const [debugDuration, setDebugDuration] = useState<number | null>(null);
+  useEffect(() => {
+    if (!debugLoggingState?.enabled || !debugLoggingState.enabled_at) {
+      setDebugDuration(null);
+      return;
+    }
+    const enabledAt = new Date(debugLoggingState.enabled_at).getTime();
+    const updateDuration = () => {
+      setDebugDuration(Math.floor((Date.now() - enabledAt) / 1000));
+    };
+    updateDuration();
+    const interval = setInterval(updateDuration, 1000);
+    return () => clearInterval(interval);
+  }, [debugLoggingState?.enabled, debugLoggingState?.enabled_at]);
 
   // Build the unified sidebar items list
   const navItemsMap = new Map(defaultNavItems.map(item => [item.id, item]));
@@ -592,6 +616,28 @@ export function Layout() {
       <main className={`flex-1 bg-bambu-dark overflow-auto transition-all duration-300 ${
         isMobile ? 'mt-14' : sidebarExpanded ? 'ml-64' : 'ml-16'
       }`}>
+        {/* Debug logging indicator */}
+        {debugLoggingState?.enabled && (
+          <div className="bg-amber-500/20 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm">
+              <Bug className="w-4 h-4 text-amber-500 animate-pulse" />
+              <span className="text-amber-200">
+                {t('support.debugLoggingActive', { defaultValue: 'Debug logging is active' })}
+                {debugDuration !== null && (
+                  <span className="text-amber-300/70 ml-2">
+                    ({Math.floor(debugDuration / 60)}m {debugDuration % 60}s)
+                  </span>
+                )}
+              </span>
+              <button
+                onClick={() => navigate('/system')}
+                className="text-amber-400 hover:text-amber-300 font-medium underline ml-2"
+              >
+                {t('support.manageLogs', { defaultValue: 'Manage' })}
+              </button>
+            </div>
+          </div>
+        )}
         {/* Persistent update banner */}
         {showUpdateBanner && (
           <div className="bg-bambu-green/20 border-b border-bambu-green/30 px-4 py-2 flex items-center justify-between">

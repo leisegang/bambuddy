@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   Server,
@@ -16,8 +17,11 @@ import {
   Plug,
   FolderKanban,
   Palette,
+  Bug,
+  Download,
+  Headphones,
 } from 'lucide-react';
-import { api } from '../api/client';
+import { api, supportApi } from '../api/client';
 import { Card } from '../components/Card';
 
 function StatCard({
@@ -80,12 +84,47 @@ function Section({
 
 export function SystemInfoPage() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [bundleError, setBundleError] = useState<string | null>(null);
+  const [bundleDownloading, setBundleDownloading] = useState(false);
+  const [debugToggling, setDebugToggling] = useState(false);
 
   const { data: systemInfo, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['systemInfo'],
     queryFn: api.getSystemInfo,
     refetchInterval: 30000, // Auto-refresh every 30 seconds
   });
+
+  const { data: debugLoggingState } = useQuery({
+    queryKey: ['debugLogging'],
+    queryFn: supportApi.getDebugLoggingState,
+    staleTime: 10 * 1000, // 10 seconds
+    refetchInterval: 10 * 1000,
+  });
+
+  const handleToggleDebugLogging = async () => {
+    setDebugToggling(true);
+    try {
+      await supportApi.setDebugLogging(!debugLoggingState?.enabled);
+      queryClient.invalidateQueries({ queryKey: ['debugLogging'] });
+    } catch (err) {
+      console.error('Failed to toggle debug logging:', err);
+    } finally {
+      setDebugToggling(false);
+    }
+  };
+
+  const handleDownloadBundle = async () => {
+    setBundleError(null);
+    setBundleDownloading(true);
+    try {
+      await supportApi.downloadSupportBundle();
+    } catch (err) {
+      setBundleError(err instanceof Error ? err.message : 'Failed to download support bundle');
+    } finally {
+      setBundleDownloading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -155,6 +194,131 @@ export function SystemInfoPage() {
             label={t('system.hostname', 'Hostname')}
             value={systemInfo.system.hostname}
           />
+        </div>
+      </Section>
+
+      {/* Support & Troubleshooting */}
+      <Section title={t('support.title', 'Support & Troubleshooting')} icon={Headphones}>
+        <div className="space-y-4">
+          <p className="text-sm text-bambu-gray">
+            {t('support.description', 'Enable debug logging to capture detailed information, then download a support bundle to share when reporting issues.')}
+          </p>
+
+          {/* Debug Logging Toggle */}
+          <div className="flex items-center justify-between p-4 bg-bambu-dark rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${debugLoggingState?.enabled ? 'bg-amber-500/20 text-amber-500' : 'bg-bambu-dark-tertiary text-bambu-gray'}`}>
+                <Bug className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-medium text-white">{t('support.debugLogging', 'Debug Logging')}</p>
+                <p className="text-sm text-bambu-gray">
+                  {debugLoggingState?.enabled
+                    ? t('support.debugLoggingEnabled', 'Capturing detailed logs')
+                    : t('support.debugLoggingDisabled', 'Normal logging level')}
+                  {debugLoggingState?.enabled && debugLoggingState.duration_seconds !== null && (
+                    <span className="text-amber-400 ml-2">
+                      ({Math.floor(debugLoggingState.duration_seconds / 60)}m {debugLoggingState.duration_seconds % 60}s)
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleToggleDebugLogging}
+              disabled={debugToggling}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                debugLoggingState?.enabled
+                  ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                  : 'bg-bambu-green/20 text-bambu-green hover:bg-bambu-green/30'
+              } disabled:opacity-50`}
+            >
+              {debugToggling && <Loader2 className="w-4 h-4 animate-spin" />}
+              {debugLoggingState?.enabled
+                ? t('support.disableDebug', 'Disable')
+                : t('support.enableDebug', 'Enable')}
+            </button>
+          </div>
+
+          {/* Support Bundle Download */}
+          <div className="flex items-center justify-between p-4 bg-bambu-dark rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-bambu-dark-tertiary text-bambu-green">
+                <Download className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-medium text-white">{t('support.supportBundle', 'Support Bundle')}</p>
+                <p className="text-sm text-bambu-gray">
+                  {t('support.supportBundleDescription', 'Download system info and logs as a ZIP file')}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleDownloadBundle}
+              disabled={bundleDownloading || !debugLoggingState?.enabled}
+              className="px-4 py-2 rounded-lg font-medium bg-bambu-green/20 text-bambu-green hover:bg-bambu-green/30 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!debugLoggingState?.enabled ? t('support.enableDebugFirst', 'Enable debug logging first') : undefined}
+            >
+              {bundleDownloading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {t('common.download', 'Download')}
+            </button>
+          </div>
+
+          {/* Error message */}
+          {bundleError && (
+            <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm">
+              {bundleError}
+            </div>
+          )}
+
+          {/* Instructions */}
+          {!debugLoggingState?.enabled && (
+            <div className="p-4 bg-bambu-dark-tertiary/50 rounded-lg">
+              <p className="text-sm text-bambu-gray">
+                <span className="text-amber-400 font-medium">{t('support.instructions', 'To report an issue:')}</span>
+                <br />
+                1. {t('support.step1', 'Enable debug logging')}
+                <br />
+                2. {t('support.step2', 'Reproduce the issue')}
+                <br />
+                3. {t('support.step3', 'Download the support bundle')}
+                <br />
+                4. {t('support.step4', 'Attach the ZIP file to your issue report')}
+              </p>
+            </div>
+          )}
+
+          {/* Privacy Info */}
+          <div className="p-4 bg-bambu-dark rounded-lg space-y-3">
+            <p className="text-sm font-medium text-white">{t('support.privacyTitle', 'What\'s in the support bundle?')}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-bambu-green font-medium mb-1">{t('support.collected', 'Collected:')}</p>
+                <ul className="text-bambu-gray space-y-0.5">
+                  <li>• {t('support.collectItem1', 'App version and debug mode')}</li>
+                  <li>• {t('support.collectItem2', 'OS, architecture, Python version')}</li>
+                  <li>• {t('support.collectItem3', 'Database statistics (counts only)')}</li>
+                  <li>• {t('support.collectItem4', 'Printer models and nozzle counts')}</li>
+                  <li>• {t('support.collectItem5', 'Non-sensitive settings (themes, formats)')}</li>
+                  <li>• {t('support.collectItem6', 'Debug logs (sanitized)')}</li>
+                </ul>
+              </div>
+              <div>
+                <p className="text-red-400 font-medium mb-1">{t('support.notCollected', 'NOT collected:')}</p>
+                <ul className="text-bambu-gray space-y-0.5">
+                  <li>• {t('support.notItem1', 'Printer names, IPs, serial numbers')}</li>
+                  <li>• {t('support.notItem2', 'Access codes and passwords')}</li>
+                  <li>• {t('support.notItem3', 'Email addresses')}</li>
+                  <li>• {t('support.notItem4', 'API keys and tokens')}</li>
+                  <li>• {t('support.notItem5', 'Webhook URLs')}</li>
+                  <li>• {t('support.notItem6', 'Your hostname or username')}</li>
+                </ul>
+              </div>
+            </div>
+            <p className="text-xs text-bambu-gray/70">
+              {t('support.privacyNote', 'IP addresses in logs are replaced with [IP] and email addresses with [EMAIL].')}
+            </p>
+          </div>
         </div>
       </Section>
 

@@ -2580,3 +2580,45 @@ export const firmwareApi = {
   getUploadStatus: (printerId: number) =>
     request<FirmwareUploadStatus>(`/firmware/updates/${printerId}/upload/status`),
 };
+
+// Support types
+export interface DebugLoggingState {
+  enabled: boolean;
+  enabled_at: string | null;
+  duration_seconds: number | null;
+}
+
+// Support API
+export const supportApi = {
+  getDebugLoggingState: () =>
+    request<DebugLoggingState>('/support/debug-logging'),
+
+  setDebugLogging: (enabled: boolean) =>
+    request<DebugLoggingState>('/support/debug-logging', {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
+
+  downloadSupportBundle: async () => {
+    const response = await fetch(`${API_BASE}/support/bundle`);
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || `HTTP ${response.status}`);
+    }
+    // Get filename from Content-Disposition header or use default
+    const disposition = response.headers.get('Content-Disposition');
+    const filenameMatch = disposition?.match(/filename=(.+)/);
+    const filename = filenameMatch ? filenameMatch[1] : 'bambuddy-support.zip';
+
+    // Download the blob
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  },
+};

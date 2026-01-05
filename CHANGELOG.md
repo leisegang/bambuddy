@@ -5,6 +5,12 @@ All notable changes to Bambuddy will be documented in this file.
 ## [0.1.6b7] - 2026-01-04
 
 ### Added
+- **Support bundle for issue reporting** - Collect debug logs and system info for troubleshooting:
+  - Toggle debug logging from System Information page
+  - Debug logging indicator banner shows across all pages with live timer
+  - Download support bundle as ZIP file with sanitized logs and system info
+  - Privacy-focused: filters sensitive data (passwords, tokens, emails, IPs)
+  - Clear explanation of what data is/isn't collected
 - **Firmware update helper** - Check and upload firmware updates for LAN-only printers:
   - Automatic firmware update checking against Bambu Lab's servers
   - Orange "Update" badge on printer cards when updates are available
