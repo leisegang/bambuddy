@@ -2370,7 +2370,7 @@ function PrinterCard({
                     `height=${state.height}`,
                     state.left !== undefined ? `left=${state.left}` : '',
                     state.top !== undefined ? `top=${state.top}` : '',
-                    'menubar=no,toolbar=no,location=no,status=no',
+                    'menubar=no,toolbar=no,location=no,status=no,noopener',
                   ].filter(Boolean).join(',');
                   window.open(`/camera/${printer.id}`, `camera-${printer.id}`, features);
                 }}
