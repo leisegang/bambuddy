@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Archive } from '../api/client';
 import { api } from '../api/client';
+import { parseUTCDate } from '../utils/date';
 
 interface CalendarViewProps {
   archives: Archive[];
@@ -31,11 +32,11 @@ export function CalendarView({ archives, onArchiveClick, highlightedArchiveId }:
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedArchiveId, setSelectedArchiveId] = useState<number | null>(null);
 
-  // Group archives by date
+  // Group archives by date (using local timezone from UTC timestamps)
   const archivesByDate = useMemo(() => {
     const map = new Map<string, Archive[]>();
     archives.forEach(archive => {
-      const date = new Date(archive.completed_at || archive.created_at);
+      const date = parseUTCDate(archive.completed_at || archive.created_at) || new Date();
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
       const existing = map.get(key) || [];
       existing.push(archive);

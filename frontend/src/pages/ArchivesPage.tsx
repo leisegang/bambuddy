@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { openInSlicer } from '../utils/slicer';
+import { formatDate, formatDateOnly, parseUTCDate } from '../utils/date';
 import { useIsMobile } from '../hooks/useIsMobile';
 import type { Archive, ProjectListItem } from '../api/client';
 import { Card, CardContent } from '../components/Card';
@@ -77,15 +78,7 @@ function formatDuration(seconds: number): string {
   return `${minutes}m`;
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+// formatDate imported from '../utils/date' - handles UTC conversion
 
 function ArchiveCard({
   archive,
@@ -1365,7 +1358,7 @@ function ArchiveListRow({
           {printerName}
         </div>
         <div className="col-span-2 text-sm text-bambu-gray">
-          {new Date(archive.created_at).toLocaleDateString()}
+          {formatDateOnly(archive.created_at)}
         </div>
         <div className="col-span-1 text-sm text-bambu-gray">
           {formatFileSize(archive.file_size)}
@@ -1551,7 +1544,7 @@ function ArchiveListRow({
                   <div className="text-sm text-gray-400 flex gap-3">
                     <span>{formatFileSize(file.size)}</span>
                     {file.mtime && (
-                      <span>{new Date(file.mtime).toLocaleDateString()}</span>
+                      <span>{formatDateOnly(file.mtime)}</span>
                     )}
                   </div>
                 </button>
@@ -1817,7 +1810,7 @@ export function ArchivesPage() {
     ?.filter((a) => {
       // Collection filter
       const now = new Date();
-      const archiveDate = new Date(a.created_at);
+      const archiveDate = parseUTCDate(a.created_at) || new Date(0);
       let matchesCollection = true;
 
       switch (collection) {
@@ -1876,9 +1869,9 @@ export function ArchivesPage() {
     .sort((a, b) => {
       switch (sortBy) {
         case 'date-desc':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          return (parseUTCDate(b.created_at)?.getTime() || 0) - (parseUTCDate(a.created_at)?.getTime() || 0);
         case 'date-asc':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          return (parseUTCDate(a.created_at)?.getTime() || 0) - (parseUTCDate(b.created_at)?.getTime() || 0);
         case 'name-asc':
           return (a.print_name || a.filename).localeCompare(b.print_name || b.filename);
         case 'name-desc':

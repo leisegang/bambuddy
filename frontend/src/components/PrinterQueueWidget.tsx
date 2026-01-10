@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Clock, Calendar, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { parseUTCDate } from '../utils/date';
 
 interface PrinterQueueWidgetProps {
   printerId: number;
@@ -9,7 +10,8 @@ interface PrinterQueueWidgetProps {
 
 function formatRelativeTime(dateString: string | null): string {
   if (!dateString) return 'ASAP';
-  const date = new Date(dateString);
+  const date = parseUTCDate(dateString);
+  if (!date) return 'ASAP';
   const now = new Date();
   const diff = date.getTime() - now.getTime();
 

@@ -32,6 +32,7 @@ import {
   ShoppingCart,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { parseUTCDate, formatDateOnly, formatDate as formatDateUtil } from '../utils/date';
 import type { Archive, ProjectUpdate, BOMItem, BOMItemCreate } from '../api/client';
 import { Card, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
@@ -175,13 +176,13 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 function formatDate(dateString: string | null): string {
   if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  return formatDateOnly(dateString, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function getDueDateStatus(dateString: string | null): { color: string; label: string } | null {
   if (!dateString) return null;
-  const dueDate = new Date(dateString);
+  const dueDate = parseUTCDate(dateString);
+  if (!dueDate) return null;
   const now = new Date();
   const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -402,8 +403,7 @@ export function ProjectDetailPage() {
   });
 
   const formatTimelineDate = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString(undefined, {
+    return formatDateUtil(timestamp, {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',

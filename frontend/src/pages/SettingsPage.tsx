@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Plug, AlertTriangle, RotateCcw, Bell, Download, RefreshCw, ExternalLink, Globe, Droplets, Thermometer, FileText, Edit2, Send, CheckCircle, XCircle, History, Trash2, Upload, Zap, TrendingUp, Calendar, DollarSign, Power, PowerOff, Key, Copy, Database, Info, X, Shield, Printer, Cylinder } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api/client';
+import { formatDateOnly } from '../utils/date';
 import type { AppSettings, AppSettingsUpdate, SmartPlug, SmartPlugStatus, NotificationProvider, NotificationTemplate, UpdateStatus } from '../api/client';
 import { Card, CardContent, CardHeader } from '../components/Card';
 import { Button } from '../components/Button';
@@ -1943,7 +1944,7 @@ export function SettingsPage() {
                             <p className="text-white font-medium">{key.name}</p>
                             <p className="text-xs text-bambu-gray">
                               {key.key_prefix}••••••••
-                              {key.last_used && ` · Last used: ${new Date(key.last_used).toLocaleDateString()}`}
+                              {key.last_used && ` · Last used: ${formatDateOnly(key.last_used)}`}
                             </p>
                           </div>
                         </div>

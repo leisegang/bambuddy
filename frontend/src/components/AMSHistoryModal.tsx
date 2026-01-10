@@ -13,6 +13,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { api, type AMSHistoryResponse } from '../api/client';
+import { parseUTCDate } from '../utils/date';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -79,16 +80,19 @@ export function AMSHistoryModal({
   if (!isOpen) return null;
 
   // Format data for chart
-  const chartData = data?.data.map(point => ({
-    time: new Date(point.recorded_at).getTime(),
-    humidity: point.humidity,
-    temperature: point.temperature,
-    timeLabel: new Date(point.recorded_at).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      ...(hours > 24 ? { day: 'numeric', month: 'short' } : {}),
-    }),
-  })) || [];
+  const chartData = data?.data.map(point => {
+    const date = parseUTCDate(point.recorded_at) || new Date();
+    return {
+      time: date.getTime(),
+      humidity: point.humidity,
+      temperature: point.temperature,
+      timeLabel: date.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        ...(hours > 24 ? { day: 'numeric', month: 'short' } : {}),
+      }),
+    };
+  }) || [];
 
   // Get thresholds
   const humidityGood = thresholds?.humidityGood || 40;

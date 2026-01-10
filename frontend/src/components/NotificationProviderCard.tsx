@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { Bell, Trash2, Settings2, Edit2, Send, Loader2, CheckCircle, XCircle, Moon, Clock, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 import { api } from '../api/client';
+import { formatDateOnly, parseUTCDate } from '../utils/date';
 import type { NotificationProvider, NotificationProviderUpdate } from '../api/client';
 import { Card, CardContent } from './Card';
 import { Button } from './Button';
@@ -90,11 +91,11 @@ export function NotificationProviderCard({ provider, onEdit }: NotificationProvi
             {/* Quick enable/disable toggle + Status indicator */}
             <div className="flex items-center gap-3">
               {provider.last_success && (
-                <span className="text-xs text-bambu-green hidden sm:inline">Last: {new Date(provider.last_success).toLocaleDateString()}</span>
+                <span className="text-xs text-bambu-green hidden sm:inline">Last: {formatDateOnly(provider.last_success)}</span>
               )}
               {/* Only show error if it's more recent than last success */}
               {provider.last_error && provider.last_error_at && (
-                !provider.last_success || new Date(provider.last_error_at) > new Date(provider.last_success)
+                !provider.last_success || (parseUTCDate(provider.last_error_at)?.getTime() || 0) > (parseUTCDate(provider.last_success)?.getTime() || 0)
               ) && (
                 <span className="text-xs text-red-400" title={provider.last_error}>Error</span>
               )}

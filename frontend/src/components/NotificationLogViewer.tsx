@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { History, CheckCircle, XCircle, Loader2, Trash2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../api/client';
+import { parseUTCDate, formatDate as formatDateUtil } from '../utils/date';
 import type { NotificationLogEntry } from '../api/client';
 import { Button } from './Button';
 import { useToast } from '../contexts/ToastContext';
@@ -70,7 +71,8 @@ export function NotificationLogViewer({ onClose }: NotificationLogViewerProps) {
   });
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseUTCDate(dateStr);
+    if (!date) return '';
     const now = new Date();
     const diff = now.getTime() - date.getTime();
 
@@ -278,7 +280,7 @@ function LogEntry({
           )}
           <div className="flex gap-4 text-xs text-bambu-gray pt-1">
             <span>Provider: {log.provider_type}</span>
-            <span>Time: {new Date(log.created_at).toLocaleString()}</span>
+            <span>Time: {formatDateUtil(log.created_at)}</span>
           </div>
         </div>
       )}

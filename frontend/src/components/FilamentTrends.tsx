@@ -15,6 +15,7 @@ import {
   Legend,
 } from 'recharts';
 import type { Archive } from '../api/client';
+import { parseUTCDate } from '../utils/date';
 
 interface FilamentTrendsProps {
   archives: Archive[];
@@ -47,7 +48,7 @@ export function FilamentTrends({ archives, currency = '$' }: FilamentTrendsProps
   // Filter archives by time range
   const filteredArchives = useMemo(() => {
     const startDate = getDateRange(timeRange);
-    return archives.filter(a => new Date(a.completed_at || a.created_at) >= startDate);
+    return archives.filter(a => (parseUTCDate(a.completed_at || a.created_at) || new Date(0)) >= startDate);
   }, [archives, timeRange]);
 
   // Calculate daily usage data
@@ -55,8 +56,9 @@ export function FilamentTrends({ archives, currency = '$' }: FilamentTrendsProps
     const dataMap = new Map<string, { date: string; filament: number; cost: number; prints: number }>();
 
     filteredArchives.forEach(archive => {
-      const date = new Date(archive.completed_at || archive.created_at);
-      const key = date.toISOString().split('T')[0];
+      const date = parseUTCDate(archive.completed_at || archive.created_at) || new Date();
+      // Use local date string for grouping
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
       const existing = dataMap.get(key) || { date: key, filament: 0, cost: 0, prints: 0 };
       existing.filament += archive.filament_used_grams || 0;
@@ -80,11 +82,11 @@ export function FilamentTrends({ archives, currency = '$' }: FilamentTrendsProps
     const dataMap = new Map<string, { week: string; filament: number; cost: number; prints: number }>();
 
     filteredArchives.forEach(archive => {
-      const date = new Date(archive.completed_at || archive.created_at);
+      const date = parseUTCDate(archive.completed_at || archive.created_at) || new Date();
       // Get week start (Sunday)
       const weekStart = new Date(date);
       weekStart.setDate(date.getDate() - date.getDay());
-      const key = weekStart.toISOString().split('T')[0];
+      const key = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
 
       const existing = dataMap.get(key) || { week: key, filament: 0, cost: 0, prints: 0 };
       existing.filament += archive.filament_used_grams || 0;
@@ -132,7 +134,7 @@ export function FilamentTrends({ archives, currency = '$' }: FilamentTrendsProps
       const monthStr = monthDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
 
       const monthArchives = archives.filter(a => {
-        const d = new Date(a.completed_at || a.created_at);
+        const d = parseUTCDate(a.completed_at || a.created_at) || new Date(0);
         return d >= monthDate && d <= monthEnd;
       });
 

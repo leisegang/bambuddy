@@ -52,6 +52,7 @@ const SkipObjectsIcon = ({ className }: { className?: string }) => (
 );
 import { useNavigate } from 'react-router-dom';
 import { api, discoveryApi, firmwareApi } from '../api/client';
+import { formatDateOnly } from '../utils/date';
 import type { Printer, PrinterCreate, AMSUnit, DiscoveredPrinter, FirmwareUpdateInfo, FirmwareUploadStatus } from '../api/client';
 import { Card, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
@@ -1617,7 +1618,7 @@ function PrinterCard({
                               Last: {lastPrint.print_name || lastPrint.filename}
                               {lastPrint.completed_at && (
                                 <span className="ml-1 text-bambu-gray/60">
-                                  • {new Date(lastPrint.completed_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                  • {formatDateOnly(lastPrint.completed_at, { month: 'short', day: 'numeric' })}
                                 </span>
                               )}
                             </p>

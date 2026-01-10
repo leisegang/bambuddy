@@ -41,6 +41,7 @@ import {
   Plus as PlusIcon,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { parseUTCDate } from '../utils/date';
 import type { SlicerSetting, SlicerSettingsResponse, SlicerSettingDetail, SlicerSettingCreate, Printer, FieldDefinition } from '../api/client';
 import { Card, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
@@ -86,7 +87,8 @@ function isUserPreset(settingId: string): boolean {
 
 // Format relative time
 function formatRelativeTime(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseUTCDate(dateStr);
+  if (!date) return '';
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);

@@ -43,6 +43,7 @@ import {
   Hand,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { parseUTCDate } from '../utils/date';
 import type { PrintQueueItem } from '../api/client';
 import { Card, CardContent } from '../components/Card';
 import { Button } from '../components/Button';
@@ -61,7 +62,8 @@ function formatDuration(seconds: number | null | undefined): string {
 
 function formatRelativeTime(dateString: string | null): string {
   if (!dateString) return 'ASAP';
-  const date = new Date(dateString);
+  const date = parseUTCDate(dateString);
+  if (!date) return 'ASAP';
   const now = new Date();
   const diff = date.getTime() - now.getTime();
 
