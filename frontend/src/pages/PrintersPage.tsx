@@ -2796,7 +2796,7 @@ function AddPrinterModal({
           clearInterval(pollInterval);
           try {
             await discoveryApi.stopDiscovery();
-          } catch (e) {
+          } catch {
             // Ignore stop errors
           }
           setDiscovering(false);
