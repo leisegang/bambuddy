@@ -24,7 +24,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 {
                     "type": "printer_status",
                     "printer_id": printer_id,
-                    "data": printer_state_to_dict(state),
+                    "data": printer_state_to_dict(state, printer_id, printer_manager.get_model(printer_id)),
                 }
             )
         logger.info(f"Sent initial status for {len(statuses)} printers")
@@ -47,7 +47,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             {
                                 "type": "printer_status",
                                 "printer_id": printer_id,
-                                "data": printer_state_to_dict(state),
+                                "data": printer_state_to_dict(state, printer_id, printer_manager.get_model(printer_id)),
                             }
                         )
 

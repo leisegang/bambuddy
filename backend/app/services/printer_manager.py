@@ -7,12 +7,42 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.models.printer import Printer
 from backend.app.services.bambu_mqtt import BambuMQTTClient, MQTTLogEntry, PrinterState, get_stage_name
 
+# Models that have a real chamber temperature sensor
+# Based on Home Assistant Bambu Lab integration
+# P1P/P1S and A1/A1Mini do NOT have chamber temp sensors
+CHAMBER_TEMP_SUPPORTED_MODELS = frozenset(
+    [
+        "X1",
+        "X1C",
+        "X1E",  # X1 series
+        "P2S",  # P2 series
+        "H2C",
+        "H2D",
+        "H2DPRO",
+        "H2S",  # H2 series
+    ]
+)
+
+
+def supports_chamber_temp(model: str | None) -> bool:
+    """Check if a printer model has a real chamber temperature sensor.
+
+    P1P, P1S, A1, and A1Mini do NOT have chamber temp sensors.
+    The 'chamber_temper' value they report is meaningless.
+    """
+    if not model:
+        return False
+    # Normalize model name (uppercase, strip whitespace)
+    model_upper = model.strip().upper()
+    return model_upper in CHAMBER_TEMP_SUPPORTED_MODELS
+
 
 class PrinterManager:
     """Manager for multiple printer connections."""
 
     def __init__(self):
         self._clients: dict[int, BambuMQTTClient] = {}
+        self._models: dict[int, str | None] = {}  # Cache printer models for feature detection
         self._on_print_start: Callable[[int, dict], None] | None = None
         self._on_print_complete: Callable[[int, dict], None] | None = None
         self._on_status_change: Callable[[int, PrinterState], None] | None = None
@@ -94,6 +124,7 @@ class PrinterManager:
 
         client.connect()
         self._clients[printer_id] = client
+        self._models[printer_id] = printer.model  # Cache model for feature detection
 
         # Wait a moment for connection
         await asyncio.sleep(1)
@@ -104,6 +135,7 @@ class PrinterManager:
         if printer_id in self._clients:
             self._clients[printer_id].disconnect()
             del self._clients[printer_id]
+        self._models.pop(printer_id, None)  # Clean up model cache
 
     def disconnect_all(self):
         """Disconnect from all printers."""
@@ -118,6 +150,10 @@ class PrinterManager:
             client.check_staleness()
             return client.state
         return None
+
+    def get_model(self, printer_id: int) -> str | None:
+        """Get the cached model for a printer."""
+        return self._models.get(printer_id)
 
     def get_all_statuses(self) -> dict[int, PrinterState]:
         """Get status of all connected printers (checks for stale connections)."""
@@ -353,8 +389,14 @@ def get_derived_status_name(state: PrinterState) -> str | None:
     return None
 
 
-def printer_state_to_dict(state: PrinterState, printer_id: int | None = None) -> dict:
-    """Convert PrinterState to a JSON-serializable dict."""
+def printer_state_to_dict(state: PrinterState, printer_id: int | None = None, model: str | None = None) -> dict:
+    """Convert PrinterState to a JSON-serializable dict.
+
+    Args:
+        state: The printer state to convert
+        printer_id: Optional printer ID for generating cover URLs
+        model: Optional printer model for filtering unsupported features
+    """
     # Parse AMS data from raw_data
     ams_units = []
     vt_tray = None
@@ -468,6 +510,14 @@ def printer_state_to_dict(state: PrinterState, printer_id: int | None = None) ->
     # Get ams_extruder_map from raw_data (populated by MQTT handler from AMS info field)
     ams_extruder_map = raw_data.get("ams_extruder_map", {})
 
+    # Filter out chamber temp for models that don't have a real sensor
+    # P1P, P1S, A1, A1Mini report meaningless chamber_temper values
+    temperatures = state.temperatures
+    if not supports_chamber_temp(model):
+        temperatures = {
+            k: v for k, v in temperatures.items() if k not in ("chamber", "chamber_target", "chamber_heating")
+        }
+
     result = {
         "connected": state.connected,
         "state": state.state,
@@ -478,7 +528,7 @@ def printer_state_to_dict(state: PrinterState, printer_id: int | None = None) ->
         "remaining_time": state.remaining_time,
         "layer_num": state.layer_num,
         "total_layers": state.total_layers,
-        "temperatures": state.temperatures,
+        "temperatures": temperatures,
         "hms_errors": [
             {"code": e.code, "attr": e.attr, "module": e.module, "severity": e.severity}
             for e in (state.hms_errors or [])

@@ -251,7 +251,7 @@ async def on_printer_status_change(printer_id: int, state: PrinterState):
 
     await ws_manager.send_printer_status(
         printer_id,
-        printer_state_to_dict(state, printer_id),
+        printer_state_to_dict(state, printer_id, printer_manager.get_model(printer_id)),
     )
 
 

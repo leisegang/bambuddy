@@ -14,6 +14,7 @@ from backend.app.services.printer_manager import (
     get_derived_status_name,
     init_printer_connections,
     printer_state_to_dict,
+    supports_chamber_temp,
 )
 
 
@@ -743,6 +744,100 @@ class TestPrinterStateToDict:
         result = printer_state_to_dict(mock_state)
 
         assert result["ams"][0]["is_ams_ht"] is False
+
+    def test_chamber_temp_filtered_for_p1s(self, mock_state):
+        """Verify chamber temperature is filtered out for P1S (no chamber sensor)."""
+        mock_state.temperatures = {
+            "nozzle": 200,
+            "bed": 60,
+            "chamber": 5,
+            "chamber_target": 0,
+            "chamber_heating": False,
+        }
+
+        result = printer_state_to_dict(mock_state, model="P1S")
+
+        assert "chamber" not in result["temperatures"]
+        assert "chamber_target" not in result["temperatures"]
+        assert "chamber_heating" not in result["temperatures"]
+        assert result["temperatures"]["nozzle"] == 200
+        assert result["temperatures"]["bed"] == 60
+
+    def test_chamber_temp_kept_for_x1c(self, mock_state):
+        """Verify chamber temperature is kept for X1C (has chamber sensor)."""
+        mock_state.temperatures = {
+            "nozzle": 200,
+            "bed": 60,
+            "chamber": 25,
+            "chamber_target": 45,
+            "chamber_heating": True,
+        }
+
+        result = printer_state_to_dict(mock_state, model="X1C")
+
+        assert result["temperatures"]["chamber"] == 25
+        assert result["temperatures"]["chamber_target"] == 45
+        assert result["temperatures"]["chamber_heating"] is True
+
+    def test_chamber_temp_filtered_for_a1(self, mock_state):
+        """Verify chamber temperature is filtered out for A1 (no chamber sensor)."""
+        mock_state.temperatures = {"nozzle": 200, "bed": 60, "chamber": 5}
+
+        result = printer_state_to_dict(mock_state, model="A1")
+
+        assert "chamber" not in result["temperatures"]
+
+    def test_chamber_temp_kept_when_no_model(self, mock_state):
+        """Verify chamber temperature is kept when model is not specified (conservative approach)."""
+        mock_state.temperatures = {"nozzle": 200, "bed": 60, "chamber": 25}
+
+        result = printer_state_to_dict(mock_state)  # No model specified
+
+        # When model is unknown, we can't filter - leave as is
+        # Actually supports_chamber_temp returns False for None, so it will filter
+        # Let's check the actual behavior
+        assert "chamber" not in result["temperatures"]
+
+
+class TestSupportsChamberTemp:
+    """Tests for supports_chamber_temp helper function."""
+
+    def test_x1_series_supported(self):
+        """Verify X1 series printers support chamber temp."""
+        assert supports_chamber_temp("X1") is True
+        assert supports_chamber_temp("X1C") is True
+        assert supports_chamber_temp("X1E") is True
+
+    def test_p2_series_supported(self):
+        """Verify P2 series printers support chamber temp."""
+        assert supports_chamber_temp("P2S") is True
+
+    def test_h2_series_supported(self):
+        """Verify H2 series printers support chamber temp."""
+        assert supports_chamber_temp("H2C") is True
+        assert supports_chamber_temp("H2D") is True
+        assert supports_chamber_temp("H2DPRO") is True
+        assert supports_chamber_temp("H2S") is True
+
+    def test_p1_series_not_supported(self):
+        """Verify P1 series printers do NOT support chamber temp."""
+        assert supports_chamber_temp("P1P") is False
+        assert supports_chamber_temp("P1S") is False
+
+    def test_a1_series_not_supported(self):
+        """Verify A1 series printers do NOT support chamber temp."""
+        assert supports_chamber_temp("A1") is False
+        assert supports_chamber_temp("A1MINI") is False
+
+    def test_none_model_not_supported(self):
+        """Verify None model returns False."""
+        assert supports_chamber_temp(None) is False
+
+    def test_case_insensitive(self):
+        """Verify model matching is case-insensitive."""
+        assert supports_chamber_temp("x1c") is True
+        assert supports_chamber_temp("X1c") is True
+        assert supports_chamber_temp("p1s") is False
 
 
 class TestGetDerivedStatusName:

@@ -94,8 +94,15 @@ async def async_client(test_engine, db_session) -> AsyncGenerator[AsyncClient, N
 
     app.dependency_overrides[get_db] = override_get_db
 
+    # Mock init_printer_connections to prevent MQTT connection attempts during tests
+    async def mock_init_printer_connections(db):
+        pass  # No-op - don't connect to real printers
+
     # Also patch the module-level async_session used by services
-    with patch("backend.app.core.database.async_session", test_async_session):
+    with (
+        patch("backend.app.core.database.async_session", test_async_session),
+        patch("backend.app.main.init_printer_connections", mock_init_printer_connections),
+    ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             yield client
 

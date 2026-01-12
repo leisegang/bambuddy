@@ -525,6 +525,7 @@ class TestSkipObjectsAPI:
         mock_client.state.printable_objects = {}
         mock_client.state.skipped_objects = []
         mock_client.state.state = "IDLE"
+        mock_client.state.subtask_name = None  # Prevent FTP download attempt
 
         with patch("backend.app.api.routes.printers.printer_manager") as mock_pm:
             mock_pm.get_client.return_value = mock_client
