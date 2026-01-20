@@ -212,7 +212,7 @@ def _read_log_entries(
                 if parsed:
                     # Found a new log entry start
                     if current_entry:
-                        # Apply filters and add previous entry
+                        # Apply filters and add previous entry (without multi_line_buffer - it belongs to new entry)
                         should_include = True
 
                         # Level filter
@@ -229,21 +229,23 @@ def _read_log_entries(
                                 should_include = False
 
                         if should_include:
-                            # Append any multi-line content
-                            if multi_line_buffer:
-                                current_entry.message += "\n" + "\n".join(reversed(multi_line_buffer))
                             entries.append(current_entry)
 
                             if len(entries) >= limit:
                                 break
 
+                    # Set new entry and attach any accumulated multi-line content to it
+                    # (in reverse order, continuation lines come before their parent entry)
                     current_entry = parsed
+                    if multi_line_buffer:
+                        current_entry.message += "\n" + "\n".join(reversed(multi_line_buffer))
                     multi_line_buffer = []
-                elif current_entry and line.strip():
-                    # Continuation of multi-line log entry
+                elif line.strip():
+                    # Continuation of multi-line log entry (will be attached to next parsed entry)
                     multi_line_buffer.append(line.rstrip())
 
             # Don't forget the last (oldest) entry
+            # Note: any remaining multi_line_buffer would be orphaned lines before the first entry
             if current_entry and len(entries) < limit:
                 should_include = True
                 if level_filter and current_entry.level.upper() != level_filter.upper():
@@ -256,8 +258,6 @@ def _read_log_entries(
                     ):
                         should_include = False
                 if should_include:
-                    if multi_line_buffer:
-                        current_entry.message += "\n" + "\n".join(reversed(multi_line_buffer))
                     entries.append(current_entry)
 
     except Exception as e:

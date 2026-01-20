@@ -454,7 +454,7 @@ describe('PrintModal', () => {
       expect(mockOnClose).toHaveBeenCalled();
     });
 
-    it('shows printer dropdown for single selection', async () => {
+    it('shows printer selector for single selection', async () => {
       const item = createMockQueueItem();
 
       render(
@@ -467,8 +467,9 @@ describe('PrintModal', () => {
         />
       );
 
+      // PrinterSelector shows printer names directly
       await waitFor(() => {
-        expect(screen.getByText('Printer')).toBeInTheDocument();
+        expect(screen.getByText('P1S')).toBeInTheDocument();
       });
     });
   });
@@ -489,7 +490,7 @@ describe('PrintModal', () => {
       });
     });
 
-    it('shows info message when multiple printers selected', async () => {
+    it('shows selected count when multiple printers selected', async () => {
       const user = userEvent.setup();
       render(
         <PrintModal
@@ -507,7 +508,7 @@ describe('PrintModal', () => {
       await user.click(screen.getByText('Select all'));
 
       await waitFor(() => {
-        expect(screen.getByText(/Slot mapping below applies to all/)).toBeInTheDocument();
+        expect(screen.getByText(/2 printers selected/)).toBeInTheDocument();
       });
     });
 
