@@ -513,7 +513,7 @@ export function ConfigureAmsSlotModal({
     } else {
       setSelectedKProfile(null);
     }
-  }, [selectedPresetId, matchingKProfiles.length]); // Only trigger when preset changes
+  }, [selectedPresetId, matchingKProfiles]);
 
   // Escape key handler
   const handleKeyDown = useCallback((e: KeyboardEvent) => {

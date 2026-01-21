@@ -927,14 +927,12 @@ export function FileManagerPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   // Update selectedFolderId when URL parameter changes (e.g., navigating from Project or Archive page)
-  // Note: Only depend on searchParams, not selectedFolderId, to avoid resetting when user clicks folders
   useEffect(() => {
     const folderParam = searchParams.get('folder');
     if (folderParam) {
       const newFolderId = parseInt(folderParam, 10);
       setSelectedFolderId(newFolderId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   // Queries
