@@ -174,7 +174,7 @@ export function Layout() {
   const orderedSidebarIds = (() => {
     const result: string[] = [];
     const seen = new Set<string>();
-    
+
     // Determine if settings should be hidden (user role and auth enabled)
     const hideSettings = authEnabled && user?.role === 'user';
 
