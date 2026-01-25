@@ -689,6 +689,12 @@ async def run_migrations(conn):
     except Exception:
         pass
 
+    # Migration: Add external_url column to print_archives for user-defined links (Printables, etc.)
+    try:
+        await conn.execute(text("ALTER TABLE print_archives ADD COLUMN external_url VARCHAR(500)"))
+    except Exception:
+        pass
+
 
 async def seed_notification_templates():
     """Seed default notification templates if they don't exist."""

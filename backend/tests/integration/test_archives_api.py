@@ -146,6 +146,28 @@ class TestArchivesAPI:
         assert response.status_code == 200
         assert response.json()["is_favorite"] is True
 
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_update_archive_external_url(
+        self, async_client: AsyncClient, archive_factory, printer_factory, db_session
+    ):
+        """Verify archive external_url can be updated."""
+        printer = await printer_factory()
+        archive = await archive_factory(printer.id)
+
+        response = await async_client.patch(
+            f"/api/v1/archives/{archive.id}", json={"external_url": "https://printables.com/model/12345"}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["external_url"] == "https://printables.com/model/12345"
+
+        # Verify it can be cleared
+        response = await async_client.patch(f"/api/v1/archives/{archive.id}", json={"external_url": None})
+
+        assert response.status_code == 200
+        assert response.json()["external_url"] is None
+
     # ========================================================================
     # Delete endpoints
     # ========================================================================

@@ -84,6 +84,7 @@ def archive_to_response(
         "extra_data": archive.extra_data,
         "makerworld_url": archive.makerworld_url,
         "designer": archive.designer,
+        "external_url": archive.external_url,
         "is_favorite": archive.is_favorite,
         "tags": archive.tags,
         "notes": archive.notes,

@@ -293,10 +293,13 @@ function ArchiveCard({
       },
     ]),
     {
-      label: 'View on MakerWorld',
+      label: archive.external_url ? 'External Link' : 'View on MakerWorld',
       icon: <Globe className="w-4 h-4" />,
-      onClick: () => archive.makerworld_url && window.open(archive.makerworld_url, '_blank'),
-      disabled: !archive.makerworld_url,
+      onClick: () => {
+        const url = archive.external_url || archive.makerworld_url;
+        if (url) window.open(url, '_blank');
+      },
+      disabled: !archive.external_url && !archive.makerworld_url,
     },
     { label: '', divider: true, onClick: () => {} },
     {
@@ -812,11 +815,20 @@ function ArchiveCard({
             variant="secondary"
             size="sm"
             className="min-w-0 p-1 sm:p-1.5"
-            onClick={() => archive.makerworld_url && window.open(archive.makerworld_url, '_blank')}
-            disabled={!archive.makerworld_url}
-            title={archive.makerworld_url ? `MakerWorld: ${archive.designer || 'View project'}` : 'Not from MakerWorld'}
+            onClick={() => {
+              const url = archive.external_url || archive.makerworld_url;
+              if (url) window.open(url, '_blank');
+            }}
+            disabled={!archive.external_url && !archive.makerworld_url}
+            title={
+              archive.external_url
+                ? 'External Link'
+                : archive.makerworld_url
+                  ? `MakerWorld: ${archive.designer || 'View project'}`
+                  : 'No external link'
+            }
           >
-            <Globe className={`w-3 h-3 sm:w-4 sm:h-4 ${!archive.makerworld_url ? 'opacity-20' : ''}`} />
+            <Globe className={`w-3 h-3 sm:w-4 sm:h-4 ${!archive.external_url && !archive.makerworld_url ? 'opacity-20' : ''}`} />
           </Button>
           <Button
             variant="secondary"
@@ -1283,10 +1295,13 @@ function ArchiveListRow({
       },
     ]),
     {
-      label: 'View on MakerWorld',
+      label: archive.external_url ? 'External Link' : 'View on MakerWorld',
       icon: <Globe className="w-4 h-4" />,
-      onClick: () => archive.makerworld_url && window.open(archive.makerworld_url, '_blank'),
-      disabled: !archive.makerworld_url,
+      onClick: () => {
+        const url = archive.external_url || archive.makerworld_url;
+        if (url) window.open(url, '_blank');
+      },
+      disabled: !archive.external_url && !archive.makerworld_url,
     },
     { label: '', divider: true, onClick: () => {} },
     {
@@ -1556,12 +1571,12 @@ function ArchiveListRow({
           >
             <ExternalLink className="w-4 h-4" />
           </Button>
-          {archive.makerworld_url && (
+          {(archive.external_url || archive.makerworld_url) && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => window.open(archive.makerworld_url!, '_blank')}
-              title="MakerWorld"
+              onClick={() => window.open((archive.external_url || archive.makerworld_url)!, '_blank')}
+              title={archive.external_url ? 'External Link' : 'MakerWorld'}
             >
               <Globe className="w-4 h-4" />
             </Button>

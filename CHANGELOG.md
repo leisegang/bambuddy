@@ -5,6 +5,11 @@ All notable changes to Bambuddy will be documented in this file.
 ## [0.1.6] - 2026-01-24
 
 ### New Features
+- **External Link for Archives** - Add custom external links to archives for non-MakerWorld sources (Issue #151):
+  - Link archives to Printables, Thingiverse, or any other URL
+  - Globe button opens external link when set, falls back to auto-detected MakerWorld URL
+  - Edit via archive edit modal
+  - Included in backup/restore
 - **External Network Camera Support** - Add external cameras (MJPEG, RTSP, HTTP snapshot) to replace built-in printer cameras (Issue #143):
   - Configure per-printer external camera URL and type in Settings → Camera
   - Live streaming uses external camera when enabled

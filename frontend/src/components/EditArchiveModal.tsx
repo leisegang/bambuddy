@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { X, Save, Tag, Camera, Trash2, Loader2, Plus, FolderKanban, Hash } from 'lucide-react';
+import { X, Save, Tag, Camera, Trash2, Loader2, Plus, FolderKanban, Hash, Link } from 'lucide-react';
 import { api } from '../api/client';
 import type { Archive } from '../api/client';
 import { Button } from './Button';
@@ -51,6 +51,7 @@ export function EditArchiveModal({ archive, onClose, existingTags = [] }: EditAr
   const [status, setStatus] = useState(archive.status);
   const [quantity, setQuantity] = useState(archive.quantity ?? 1);
   const [photos, setPhotos] = useState<string[]>(archive.photos || []);
+  const [externalUrl, setExternalUrl] = useState(archive.external_url || '');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const tagInputRef = useRef<HTMLInputElement>(null);
@@ -155,6 +156,7 @@ export function EditArchiveModal({ archive, onClose, existingTags = [] }: EditAr
       notes: notes || undefined,
       tags: tags || undefined,
       quantity: quantity,
+      external_url: externalUrl || null,
     };
 
     // Only include status if changed
@@ -273,6 +275,24 @@ export function EditArchiveModal({ archive, onClose, existingTags = [] }: EditAr
               className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white focus:border-bambu-green focus:outline-none resize-none"
               placeholder="Add notes about this print..."
             />
+          </div>
+
+          {/* External Link */}
+          <div>
+            <label className="block text-sm text-bambu-gray mb-1">
+              <Link className="w-4 h-4 inline mr-1" />
+              External Link
+            </label>
+            <input
+              type="url"
+              value={externalUrl}
+              onChange={(e) => setExternalUrl(e.target.value)}
+              className="w-full px-3 py-2 bg-bambu-dark border border-bambu-dark-tertiary rounded-lg text-white focus:border-bambu-green focus:outline-none"
+              placeholder="https://printables.com/model/..."
+            />
+            <p className="text-xs text-bambu-gray mt-1">
+              Link to Printables, Thingiverse, or other source
+            </p>
           </div>
 
           {/* Tags */}

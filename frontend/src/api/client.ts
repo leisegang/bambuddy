@@ -259,6 +259,7 @@ export interface Archive {
   extra_data: Record<string, unknown> | null;
   makerworld_url: string | null;
   designer: string | null;
+  external_url: string | null;
   is_favorite: boolean;
   tags: string | null;
   notes: string | null;
@@ -1693,6 +1694,7 @@ export const api = {
     failure_reason?: string | null;
     status?: string;
     quantity?: number;
+    external_url?: string | null;
   }) =>
     request<Archive>(`/archives/${id}`, {
       method: 'PATCH',

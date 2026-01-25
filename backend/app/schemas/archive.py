@@ -11,6 +11,7 @@ class ArchiveBase(BaseModel):
     cost: float | None = None
     failure_reason: str | None = None
     quantity: int | None = None  # Number of items printed
+    external_url: str | None = None  # User-defined link (Printables, Thingiverse, etc.)
 
 
 class ArchiveUpdate(ArchiveBase):
@@ -70,6 +71,7 @@ class ArchiveResponse(BaseModel):
 
     makerworld_url: str | None
     designer: str | None
+    external_url: str | None = None  # User-defined link (Printables, Thingiverse, etc.)
 
     is_favorite: bool
     tags: str | None
