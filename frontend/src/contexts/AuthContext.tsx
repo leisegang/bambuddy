@@ -46,8 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Auth not enabled, allow access
         setUser(null);
       }
-    } catch (error) {
-      console.error('Failed to check auth status:', error);
+    } catch {
       setAuthEnabled(false);
       setUser(null);
     } finally {
