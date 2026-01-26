@@ -114,6 +114,10 @@ _print_energy_start: dict[int, float] = {}
 # Track reprints to add costs on completion: {archive_id}
 _reprint_archives: set[int] = set()
 
+# Track progress milestones for notifications: {printer_id: last_milestone_notified}
+# Milestones are 25, 50, 75. Value of 0 means no milestone notified yet for current print.
+_last_progress_milestone: dict[int, int] = {}
+
 
 async def _get_plug_energy(plug, db) -> dict | None:
     """Get energy from plug regardless of type (Tasmota or Home Assistant).
@@ -280,6 +284,44 @@ async def on_printer_status_change(printer_id: int, state: PrinterState):
         return  # No change, skip WebSocket broadcast
 
     _last_status_broadcast[printer_id] = status_key
+
+    # Check for progress milestone notifications (25%, 50%, 75%)
+    progress = state.progress or 0
+    is_printing = state.state in ("RUNNING", "PRINTING")
+
+    if is_printing and progress > 0:
+        # Determine which milestone we've reached
+        current_milestone = 0
+        if progress >= 75:
+            current_milestone = 75
+        elif progress >= 50:
+            current_milestone = 50
+        elif progress >= 25:
+            current_milestone = 25
+
+        last_milestone = _last_progress_milestone.get(printer_id, 0)
+
+        # If we've crossed a new milestone, send notification
+        if current_milestone > last_milestone:
+            _last_progress_milestone[printer_id] = current_milestone
+            try:
+                async with async_session() as db:
+                    from backend.app.models.printer import Printer
+
+                    result = await db.execute(select(Printer).where(Printer.id == printer_id))
+                    printer = result.scalar_one_or_none()
+                    printer_name = printer.name if printer else f"Printer {printer_id}"
+                    filename = state.subtask_name or state.gcode_file or "Unknown"
+                    remaining_time = state.remaining_time
+
+                    await notification_service.on_print_progress(
+                        printer_id, printer_name, filename, current_milestone, db, remaining_time
+                    )
+            except Exception as e:
+                logging.getLogger(__name__).warning(f"Progress milestone notification failed: {e}")
+    elif progress < 5:
+        # Reset milestone tracking when print restarts or new print begins
+        _last_progress_milestone[printer_id] = 0
 
     await ws_manager.send_printer_status(
         printer_id,
