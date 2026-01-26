@@ -1,8 +1,50 @@
 import asyncio
 import logging
+import sys
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from logging.handlers import RotatingFileHandler
+
+
+# =============================================================================
+# Dependency Check - runs before other imports to give helpful error messages
+# =============================================================================
+def check_dependencies():
+    """Check that all required packages are installed."""
+    missing = []
+
+    # Map of import name -> package name (for pip install)
+    required = {
+        "jwt": "PyJWT",
+        "fastapi": "fastapi",
+        "uvicorn": "uvicorn",
+        "sqlalchemy": "sqlalchemy",
+        "aiosqlite": "aiosqlite",
+        "pydantic": "pydantic",
+        "paho.mqtt": "paho-mqtt",
+    }
+
+    for module, package in required.items():
+        try:
+            __import__(module)
+        except ImportError:
+            missing.append(package)
+
+    if missing:
+        print("\n" + "=" * 60)
+        print("ERROR: Missing required Python packages!")
+        print("=" * 60)
+        print(f"\nMissing packages: {', '.join(missing)}")
+        print("\nTo fix, run:")
+        print("  pip install -r requirements.txt")
+        print("\nOr if using a virtual environment:")
+        print("  ./venv/bin/pip install -r requirements.txt")
+        print("=" * 60 + "\n")
+        sys.exit(1)
+
+
+check_dependencies()
+# =============================================================================
 
 from fastapi import FastAPI
 
