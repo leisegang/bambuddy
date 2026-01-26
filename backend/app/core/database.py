@@ -695,6 +695,40 @@ async def run_migrations(conn):
     except Exception:
         pass
 
+    # Migration: Add is_external column to library_files for external cloud files
+    try:
+        await conn.execute(text("ALTER TABLE library_files ADD COLUMN is_external BOOLEAN DEFAULT 0"))
+    except Exception:
+        pass
+
+    # Migration: Add project_id column to library_files
+    try:
+        await conn.execute(
+            text("ALTER TABLE library_files ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL")
+        )
+    except Exception:
+        pass
+
+    # Migration: Add is_external column to library_folders for external cloud folders
+    try:
+        await conn.execute(text("ALTER TABLE library_folders ADD COLUMN is_external BOOLEAN DEFAULT 0"))
+    except Exception:
+        pass
+
+    # Migration: Add external folder settings columns to library_folders
+    try:
+        await conn.execute(text("ALTER TABLE library_folders ADD COLUMN external_readonly BOOLEAN DEFAULT 0"))
+    except Exception:
+        pass
+    try:
+        await conn.execute(text("ALTER TABLE library_folders ADD COLUMN external_show_hidden BOOLEAN DEFAULT 0"))
+    except Exception:
+        pass
+    try:
+        await conn.execute(text("ALTER TABLE library_folders ADD COLUMN external_path VARCHAR(500)"))
+    except Exception:
+        pass
+
 
 async def seed_notification_templates():
     """Seed default notification templates if they don't exist."""
