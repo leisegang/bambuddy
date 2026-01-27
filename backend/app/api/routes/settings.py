@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -29,6 +30,8 @@ from backend.app.models.user import User
 from backend.app.schemas.settings import AppSettings, AppSettingsUpdate
 from backend.app.services.printer_manager import printer_manager
 from backend.app.services.spoolman import init_spoolman_client
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -921,7 +924,9 @@ async def import_backup(
                         # Plate calibration files - store for later processing after printers are restored
                         if zip_path.startswith("plate_calibration/"):
                             filename = zip_path.replace("plate_calibration/", "", 1)
-                            plate_cal_files[filename] = zf.read(zip_path)
+                            if filename:  # Skip directory entries
+                                plate_cal_files[filename] = zf.read(zip_path)
+                                logger.info(f"Stored plate calibration file for later: {filename}")
                             continue
                         target_path = base_dir / zip_path
                         target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1070,6 +1075,7 @@ async def import_backup(
         await db.flush()
 
     # Restore plate calibration files (remap printer IDs based on serial numbers)
+    logger.info(f"Plate calibration files to restore: {len(plate_cal_files)} files: {list(plate_cal_files.keys())}")
     if plate_cal_files:
         # Build serial_number -> new_printer_id mapping
         serial_to_new_id: dict[str, int] = {}
@@ -1092,6 +1098,9 @@ async def import_backup(
             if serial and serial in serial_to_new_id:
                 old_id_to_new_id[old_id] = serial_to_new_id[serial]
 
+        logger.info(
+            f"Plate calibration ID mapping: old_id_to_serial={old_id_to_serial}, serial_to_new_id={serial_to_new_id}, old_id_to_new_id={old_id_to_new_id}"
+        )
         app_settings.plate_calibration_dir.mkdir(parents=True, exist_ok=True)
 
         for filename, file_data in plate_cal_files.items():
@@ -1107,6 +1116,7 @@ async def import_backup(
                         new_filename = filename.replace(f"printer_{old_printer_id}_", f"printer_{new_printer_id}_", 1)
 
             target_path = app_settings.plate_calibration_dir / new_filename
+            logger.info(f"Writing plate calibration file: {filename} -> {target_path}")
             with open(target_path, "wb") as f:
                 f.write(file_data)
             files_restored += 1
