@@ -5,13 +5,6 @@ All notable changes to Bambuddy will be documented in this file.
 ## [0.1.6] - Not released
 
 ### New Features
-- **HMS Error Notifications** - Get notified when printer errors occur (Issue #84):
-  - Automatic notifications for HMS errors (AMS issues, nozzle problems, etc.)
-  - Human-readable error messages (853 error codes translated)
-  - Friendly error type names (Print/Task, AMS/Filament, Nozzle/Extruder, Motion Controller, Chamber)
-  - Deduplication prevents spam from repeated error messages
-  - Publishes to MQTT relay for home automation integrations
-  - New "Printer Error" toggle in notification provider settings
 - **Plate Not Empty Notification** - Dedicated notification category for build plate detection:
   - New toggle in notification provider settings (enabled by default)
   - Sends immediately (bypasses quiet hours and digest mode)
@@ -69,6 +62,13 @@ All notable changes to Bambuddy will be documented in this file.
   - Tri-state toggles: unchanged / on / off for each setting
 
 ### Fixes
+- **HMS Error Notifications** - Get notified when printer errors occur (Issue #84):
+  - Automatic notifications for HMS errors (AMS issues, nozzle problems, etc.)
+  - Human-readable error messages (853 error codes translated)
+  - Friendly error type names (Print/Task, AMS/Filament, Nozzle/Extruder, Motion Controller, Chamber)
+  - Deduplication prevents spam from repeated error messages
+  - Publishes to MQTT relay for home automation integrations
+  - New "Printer Error" toggle in notification provider settings
 - **Plate Calibration Persistence** - Fixed plate detection reference images not persisting after restart in Docker deployments
 - **Telegram Notification Parsing** - Fixed Telegram markdown parsing errors when messages contain underscores (e.g., error codes)
 - **Settings API PATCH Method** - Added PATCH support to `/api/settings` for Home Assistant rest_command compatibility (Issue #152)
