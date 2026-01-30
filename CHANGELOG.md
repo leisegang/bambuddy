@@ -2,9 +2,17 @@
 
 All notable changes to Bambuddy will be documented in this file.
 
-## [0.1.6] - Not released
+## [0.1.6-final] - Not released
 
 ### New Features
+- **Disable Printer Firmware Checks** - New toggle in Settings → General → Updates to disable printer firmware update checks:
+  - Prevents Bambuddy from checking Bambu Lab servers for firmware updates
+  - Useful for users who prefer to manage firmware manually or have network restrictions
+- **Archive Plate Browsing** - Browse plate thumbnails directly in archive cards (Issue #166):
+  - Hover over archive card to reveal plate navigation for multi-plate files
+  - Left/right arrows to cycle through plate thumbnails
+  - Dot indicators show current plate (clickable to jump to specific plate)
+  - Lazy-loads plate data only when user hovers
 - **GitHub Profile Backup** - Automatically backup your Cloud profiles, K-profiles and settings to a GitHub repository:
   - Configure GitHub repository URL and Personal Access Token
   - Schedule backups hourly, daily, or weekly
@@ -102,6 +110,13 @@ All notable changes to Bambuddy will be documented in this file.
   - New "Print Queue" section in notification provider settings
 
 ### Fixes
+- **Multi-Plate Thumbnail in Queue** - Fixed queue items showing wrong thumbnail for multi-plate files (Issue #166):
+  - Queue now displays the correct plate thumbnail based on selected plate
+  - Previously always showed plate 1 thumbnail regardless of selection
+- **A1/A1 Mini Shows Printing Instead of Idle** - Fixed incorrect status display for A1 series printers (Issue #168):
+  - Some A1/A1 Mini firmware versions incorrectly report stage 0 ("Printing") when idle
+  - Now checks gcode_state to correctly display "Idle" for affected printers
+  - Fix only applies to A1 models with the specific buggy condition
 - **HMS Error Notifications** - Get notified when printer errors occur (Issue #84):
   - Automatic notifications for HMS errors (AMS issues, nozzle problems, etc.)
   - Human-readable error messages (853 error codes translated)
@@ -132,6 +147,11 @@ All notable changes to Bambuddy will be documented in this file.
   - Text wrap toggle: "Wrap" button in header to wrap long names instead of truncating
   - Both settings persist in localStorage
   - Tooltip shows full name on hover
+- **K-Profiles Backup Status** - Fixed GitHub backup settings showing incorrect printer connection count (e.g., "1/2 connected" when both printers are connected); now fetches status from API instead of relying on WebSocket cache
+- **GitHub Backup Timestamps** - Removed volatile timestamps from GitHub backup files so git diffs only show actual data changes
+
+### Maintenance
+- Upgraded vitest from 2.x to 3.x to resolve npm audit security vulnerabilities in dev dependencies
 
 ## [0.1.6b11] - 2026-01-22
 
