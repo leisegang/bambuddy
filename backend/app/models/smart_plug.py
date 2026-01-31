@@ -83,6 +83,9 @@ class SmartPlug(Base):
     # Switchbar visibility
     show_in_switchbar: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Printer card visibility (for scripts)
+    show_on_printer_card: Mapped[bool] = mapped_column(Boolean, default=True)
+
     # Status tracking
     last_state: Mapped[str | None] = mapped_column(String(10), nullable=True)  # "ON"/"OFF"
     last_checked: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
