@@ -5,6 +5,16 @@ All notable changes to Bambuddy will be documented in this file.
 
 ## [0.1.8b] - Not released
 
+### Added
+- **Windows Portable Launcher** (contributed by nmori):
+  - New `start_bambuddy.bat` for Windows users - double-click to run, no installation required
+  - Automatically downloads Python 3.13 and Node.js 22 on first run (portable, no system changes)
+  - Everything stored in `.portable\` folder for easy cleanup
+  - Commands: `start_bambuddy.bat` (launch), `start_bambuddy.bat update` (update deps), `start_bambuddy.bat reset` (clean start)
+  - Custom port via `set PORT=9000 & start_bambuddy.bat`
+  - Verifies all downloads with SHA256 checksums for security
+  - Supports both x64 and ARM64 Windows systems
+
 ## [0.1.7] - 2026-02-03
 
 ### Security
