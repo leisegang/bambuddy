@@ -341,11 +341,15 @@ async def restore_backup(
             raise HTTPException(400, "Invalid backup: missing bambuddy.db")
 
         try:
+            import asyncio
+
             # 3. Stop virtual printer if running (releases file locks)
             try:
                 if virtual_printer_manager.is_enabled:
                     logger.info("Stopping virtual printer for restore...")
                     await virtual_printer_manager.configure(enabled=False)
+                    # Give it time to fully release file handles
+                    await asyncio.sleep(1)
             except Exception as e:
                 logger.warning(f"Failed to stop virtual printer: {e}")
 
@@ -358,6 +362,7 @@ async def restore_backup(
             shutil.copy2(backup_db, db_path)
 
             # 6. Replace data directories
+            # For Docker compatibility: clear contents then copy (don't delete mount points)
             dirs_to_restore = [
                 ("archive", base_dir / "archive"),
                 ("virtual_printer", base_dir / "virtual_printer"),
@@ -366,21 +371,45 @@ async def restore_backup(
                 ("projects", base_dir / "projects"),
             ]
 
+            skipped_dirs = []
             for name, dest_dir in dirs_to_restore:
                 src_dir = temp_path / name
                 if src_dir.exists():
                     logger.info(f"Restoring {name} directory...")
-                    if dest_dir.exists():
-                        shutil.rmtree(dest_dir)
-                    shutil.copytree(src_dir, dest_dir)
+                    try:
+                        # Clear destination contents (not the dir itself - may be Docker mount)
+                        if dest_dir.exists():
+                            for item in dest_dir.iterdir():
+                                try:
+                                    if item.is_dir():
+                                        shutil.rmtree(item)
+                                    else:
+                                        item.unlink()
+                                except OSError as e:
+                                    logger.warning(f"Could not delete {item}: {e}")
+                        else:
+                            dest_dir.mkdir(parents=True, exist_ok=True)
+                        # Copy contents from backup
+                        for item in src_dir.iterdir():
+                            dest_item = dest_dir / item.name
+                            if item.is_dir():
+                                shutil.copytree(item, dest_item)
+                            else:
+                                shutil.copy2(item, dest_item)
+                    except OSError as e:
+                        logger.warning(f"Could not restore {name} directory: {e}")
+                        skipped_dirs.append(name)
 
             # 7. Note: Virtual printer and database will be reinitialized on restart
             # Do NOT try to restart services here - the database session is closed
 
             logger.info("Restore complete - restart required")
+            message = "Backup restored successfully. Please restart Bambuddy for changes to take effect."
+            if skipped_dirs:
+                message += f" Note: Some directories could not be restored ({', '.join(skipped_dirs)})."
             return {
                 "success": True,
-                "message": "Backup restored successfully. Please restart Bambuddy for changes to take effect.",
+                "message": message,
             }
 
         except Exception as e:
