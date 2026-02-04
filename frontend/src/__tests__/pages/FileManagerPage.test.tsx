@@ -159,11 +159,11 @@ describe('FileManagerPage', () => {
       });
     });
 
-    it('shows Upload button', async () => {
+    it('shows Upload 3MF button', async () => {
       render(<FileManagerPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Upload')).toBeInTheDocument();
+        expect(screen.getByText('Upload 3MF')).toBeInTheDocument();
       });
     });
   });
@@ -454,7 +454,7 @@ describe('FileManagerPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('No files yet')).toBeInTheDocument();
-        expect(screen.getByText('Upload Files')).toBeInTheDocument();
+        expect(screen.getByText('Upload 3MF Files')).toBeInTheDocument();
       });
     });
   });
@@ -535,140 +535,36 @@ describe('FileManagerPage', () => {
     });
   });
 
-  describe('upload modal STL options', () => {
+  describe('upload modal 3MF support', () => {
     it('opens upload modal', async () => {
       const user = userEvent.setup();
       render(<FileManagerPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Upload')).toBeInTheDocument();
+        expect(screen.getByText('Upload 3MF')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByText('Upload'));
+      await user.click(screen.getByText('Upload 3MF'));
 
       await waitFor(() => {
-        expect(screen.getByText('Upload Files')).toBeInTheDocument();
+        expect(screen.getByText('Upload 3MF Files')).toBeInTheDocument();
         expect(screen.getByText(/Drag & drop/)).toBeInTheDocument();
       });
     });
 
-    it('shows STL thumbnail option when STL file is added', async () => {
+    it('shows printer model extraction info', async () => {
       const user = userEvent.setup();
       render(<FileManagerPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Upload')).toBeInTheDocument();
+        expect(screen.getByText('Upload 3MF')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByText('Upload'));
+      await user.click(screen.getByText('Upload 3MF'));
 
       await waitFor(() => {
-        expect(screen.getByText('Upload Files')).toBeInTheDocument();
-      });
-
-      // Create a mock STL file
-      const stlFile = new File(['solid test'], 'model.stl', { type: 'application/sla' });
-
-      // Get the hidden file input
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      expect(fileInput).toBeInTheDocument();
-
-      // Simulate file selection
-      await user.upload(fileInput, stlFile);
-
-      // STL thumbnail option should appear
-      await waitFor(() => {
-        expect(screen.getByText('STL thumbnail generation')).toBeInTheDocument();
-        expect(screen.getByText('Generate thumbnails for STL files')).toBeInTheDocument();
-      });
-    });
-
-    it('STL thumbnail checkbox is checked by default', async () => {
-      const user = userEvent.setup();
-      render(<FileManagerPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Upload')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByText('Upload'));
-
-      await waitFor(() => {
-        expect(screen.getByText('Upload Files')).toBeInTheDocument();
-      });
-
-      // Add an STL file
-      const stlFile = new File(['solid test'], 'model.stl', { type: 'application/sla' });
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      await user.upload(fileInput, stlFile);
-
-      await waitFor(() => {
-        expect(screen.getByText('Generate thumbnails for STL files')).toBeInTheDocument();
-      });
-
-      // Checkbox should be checked by default
-      const checkbox = screen.getByRole('checkbox', { name: /Generate thumbnails for STL files/i });
-      expect(checkbox).toBeChecked();
-    });
-
-    it('can toggle STL thumbnail checkbox', async () => {
-      const user = userEvent.setup();
-      render(<FileManagerPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Upload')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByText('Upload'));
-
-      await waitFor(() => {
-        expect(screen.getByText('Upload Files')).toBeInTheDocument();
-      });
-
-      // Add an STL file
-      const stlFile = new File(['solid test'], 'model.stl', { type: 'application/sla' });
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      await user.upload(fileInput, stlFile);
-
-      await waitFor(() => {
-        expect(screen.getByText('Generate thumbnails for STL files')).toBeInTheDocument();
-      });
-
-      const checkbox = screen.getByRole('checkbox', { name: /Generate thumbnails for STL files/i });
-      expect(checkbox).toBeChecked();
-
-      // Toggle off
-      await user.click(checkbox);
-      expect(checkbox).not.toBeChecked();
-
-      // Toggle back on
-      await user.click(checkbox);
-      expect(checkbox).toBeChecked();
-    });
-
-    it('shows STL thumbnail option for ZIP files', async () => {
-      const user = userEvent.setup();
-      render(<FileManagerPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Upload')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByText('Upload'));
-
-      await waitFor(() => {
-        expect(screen.getByText('Upload Files')).toBeInTheDocument();
-      });
-
-      // Create a mock ZIP file
-      const zipFile = new File(['PK'], 'models.zip', { type: 'application/zip' });
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      await user.upload(fileInput, zipFile);
-
-      // STL thumbnail option should appear for ZIP files (may contain STLs)
-      await waitFor(() => {
-        expect(screen.getByText('STL thumbnail generation')).toBeInTheDocument();
-        expect(screen.getByText(/ZIP files may contain STL files/)).toBeInTheDocument();
+        // The shared UploadModal shows info about printer model extraction
+        expect(screen.getByText(/printer model/i)).toBeInTheDocument();
       });
     });
   });
