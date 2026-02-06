@@ -89,6 +89,7 @@ async def get_settings(
                 "ams_history_retention_days",
                 "ftp_retry_count",
                 "ftp_retry_delay",
+                "ftp_timeout",
                 "mqtt_port",
             ]:
                 settings_dict[setting.key] = int(setting.value)
