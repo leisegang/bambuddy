@@ -95,7 +95,7 @@ export default {
     deletePrinter: 'プリンターを削除',
     printerName: 'プリンター名',
     serialNumber: 'シリアル番号',
-    ipAddress: 'IPアドレス',
+    ipAddress: 'IPアドレス / ホスト名',
     accessCode: 'アクセスコード',
     model: 'モデル',
     nozzleCount: 'ノズル数',
@@ -240,7 +240,7 @@ export default {
     form: {
       name: '名前',
       namePlaceholder: 'マイプリンター',
-      ipAddress: 'IPアドレス',
+      ipAddress: 'IPアドレス / ホスト名',
       serialNumber: 'シリアル番号',
       serialCannotChange: 'シリアル番号は変更できません',
       accessCode: 'アクセスコード',
@@ -2642,6 +2642,7 @@ export default {
     skipForward: '5秒進む',
     refreshStream: 'ストリームを更新',
     dragToResize: 'ドラッグしてリサイズ',
+    chamberLight: 'チャンバーライト切替',
   },
 
   // アーカイブカードラベル

@@ -115,7 +115,7 @@ export default {
     deletePrinter: 'Delete Printer',
     printerName: 'Printer Name',
     serialNumber: 'Serial Number',
-    ipAddress: 'IP Address',
+    ipAddress: 'IP Address / Hostname',
     accessCode: 'Access Code',
     model: 'Model',
     nozzleCount: 'Nozzle Count',
@@ -1510,6 +1510,7 @@ export default {
     recording: 'Recording',
     startRecording: 'Start Recording',
     stopRecording: 'Stop Recording',
+    chamberLight: 'Toggle chamber light',
   },
 
   // Groups management

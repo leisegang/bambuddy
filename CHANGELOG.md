@@ -2,6 +2,34 @@
 
 All notable changes to Bambuddy will be documented in this file.
 
+## [0.1.9b] - Not released
+
+### Documentation
+- **Proxy Mode Security Warning** — Added FTP data channel security warning to wiki, README, and website. Bambu Studio does not encrypt the FTP data channel despite negotiating PROT P; MQTT and FTP control channels are fully TLS-encrypted. VPN (Tailscale/WireGuard) recommended for full data encryption.
+- **Docker Proxy Mode Ports** — Documented FTP passive data ports 50000-50100 required for proxy mode in Docker bridge mode. Updated port mappings in wiki virtual-printer and docker guides.
+- **SSDP Discovery Limitations** — Added table showing when SSDP discovery works (same LAN, dual-homed, Docker host mode) vs when manual IP entry is required (VPN, Docker bridge, port forwarding). Updated wiki, README, and website.
+- **Firewall Rules Updated** — Added port 50000-50100/tcp to all UFW, firewalld, and iptables examples for proxy mode FTP passive data.
+
+### Added
+- **Hostname Support for Printers** ([#290](https://github.com/maziggy/bambuddy/issues/290)) — Printers can now be added using hostnames (e.g., `printer.local`, `my-printer.home.lan`) in addition to IPv4 addresses. Updated backend validation, frontend forms, and all locale labels.
+- **Camera View Controls** ([#291](https://github.com/maziggy/bambuddy/issues/291)) — Added chamber light toggle and skip objects buttons to both embedded camera viewer and standalone camera page. Extracted skip objects modal into a reusable `SkipObjectsModal` component shared across PrintersPage and both camera views.
+
+### Fixed
+- **Camera Stop 401 When Auth Enabled** — Camera stop requests (`sendBeacon`) failed with 401 Unauthorized when authentication was enabled because `sendBeacon` cannot send auth headers. Replaced with `fetch` + `keepalive: true` which supports Authorization headers while remaining reliable during page unload.
+- **Filament Usage Charts Inflated by Quantity Multiplier** ([#229](https://github.com/maziggy/bambuddy/issues/229)) — Daily, weekly, and filament-type charts were multiplying `filament_used_grams` by print quantity, even though the value already represents the total for the entire job. A 26-object print using 126g was counted as 3,276g. Removed the erroneous multiplier from three aggregations in `FilamentTrends.tsx`.
+- **Energy Cost Shows 0.00 in "Total Consumption" Mode** ([#284](https://github.com/maziggy/bambuddy/issues/284)) — Statistics Quick Stats showed 0.00 energy cost when Energy Display Mode was set to "Total Consumption" with Home Assistant smart plugs. The `homeassistant_service` was not configured with HA URL/token before querying plug energy data, causing it to silently return nothing.
+
+### Testing
+- **Mock FTPS Server & Comprehensive FTP Test Suite** — Added 67 automated test cases against a real implicit FTPS mock server, covering every known FTP failure mode from 0.1.8+:
+  - Mock server (`mock_ftp_server.py`) implements implicit TLS, custom AVBL command, and per-command failure injection
+  - Connection tests: auth, SSL modes (prot_p/prot_c), timeout, cache, disconnect edge cases
+  - Upload tests: chunked transfer via `transfercmd()`, progress callbacks, 553/550/552 error handling
+  - Download tests: bytes, to-file, 0-byte regression, large files, missing file cleanup
+  - Model-specific tests: X1C session reuse, A1/A1 Mini prot_c fallback, P1S, unknown model defaults
+  - Async wrapper tests: upload/download/list/delete with A1 fallback and multi-path download
+  - Failure injection tests: regressions for `error_perm` hierarchy, `diagnose_storage` CWD propagation, injection count decrement
+  - Added `pyOpenSSL` to `requirements-dev.txt` for Docker test image compatibility
+
 ## [0.1.8.1] - 2026-02-07
 
 ### Fixed
