@@ -217,6 +217,12 @@ async def sync_printer_ams(
             detail=f"AMS data format not supported. Keys: {list(ams_data.keys()) if isinstance(ams_data, dict) else type(ams_data).__name__}",
         )
 
+    # OPTIMIZATION: Fetch all spools once before processing trays
+    # This eliminates redundant API calls (one per tray) when syncing multiple trays
+    logger.debug("[Printer %s] Fetching spools cache for sync...", printer.name)
+    cached_spools = await client.get_spools()
+    logger.debug("[Printer %s] Cached %d spools for batch sync", printer.name, len(cached_spools))
+
     for ams_unit in ams_units:
         if not isinstance(ams_unit, dict):
             continue
@@ -257,9 +263,20 @@ async def sync_printer_ams(
                 current_tray_uuids.add(spool_tag.upper())
 
             try:
-                sync_result = await client.sync_ams_tray(tray, printer.name, disable_weight_sync=disable_weight_sync)
+                sync_result = await client.sync_ams_tray(
+                    tray,
+                    printer.name,
+                    disable_weight_sync=disable_weight_sync,
+                    cached_spools=cached_spools,
+                )
                 if sync_result:
                     synced += 1
+                    # Add newly created spool to cache
+                    if sync_result.get("id"):
+                        spool_exists = any(s.get("id") == sync_result["id"] for s in cached_spools)
+                        if not spool_exists:
+                            cached_spools.append(sync_result)
+                            logger.debug("Added newly created spool %s to cache", sync_result["id"])
                     logger.info(
                         "Synced %s from %s AMS %s tray %s", tray.tray_sub_brands, printer.name, ams_id, tray.tray_id
                     )
@@ -273,7 +290,9 @@ async def sync_printer_ams(
 
     # Clear location for spools that were removed from this printer's AMS
     try:
-        cleared = await client.clear_location_for_removed_spools(printer.name, current_tray_uuids)
+        cleared = await client.clear_location_for_removed_spools(
+            printer.name, current_tray_uuids, cached_spools=cached_spools
+        )
         if cleared > 0:
             logger.info("Cleared location for %s spools removed from %s", cleared, printer.name)
     except Exception as e:
@@ -319,6 +338,12 @@ async def sync_all_printers(
     all_errors = []
     # Track tray UUIDs per printer (for clearing removed spools)
     printer_tray_uuids: dict[str, set[str]] = {}
+
+    # OPTIMIZATION: Fetch all spools once before processing ALL printers/trays
+    # This eliminates redundant API calls across all printers
+    logger.debug("Fetching spools cache for sync-all operation...")
+    cached_spools = await client.get_spools()
+    logger.debug("Cached %d spools for batch sync across %d printers", len(cached_spools), len(printers))
 
     for printer in printers:
         state = printer_manager.get_status(printer.id)
@@ -394,17 +419,28 @@ async def sync_all_printers(
 
                 try:
                     sync_result = await client.sync_ams_tray(
-                        tray, printer.name, disable_weight_sync=disable_weight_sync
+                        tray,
+                        printer.name,
+                        disable_weight_sync=disable_weight_sync,
+                        cached_spools=cached_spools,
                     )
                     if sync_result:
                         total_synced += 1
+                        # Add newly created spool to cache
+                        if sync_result.get("id"):
+                            spool_exists = any(s.get("id") == sync_result["id"] for s in cached_spools)
+                            if not spool_exists:
+                                cached_spools.append(sync_result)
+                                logger.debug("Added newly created spool %s to cache", sync_result["id"])
                 except Exception as e:
                     all_errors.append(f"{printer.name} AMS {ams_id}:{tray.tray_id}: {e}")
 
     # Clear location for spools that were removed from each printer's AMS
     for printer_name, current_tray_uuids in printer_tray_uuids.items():
         try:
-            cleared = await client.clear_location_for_removed_spools(printer_name, current_tray_uuids)
+            cleared = await client.clear_location_for_removed_spools(
+                printer_name, current_tray_uuids, cached_spools=cached_spools
+            )
             if cleared > 0:
                 logger.info("Cleared location for %s spools removed from %s", cleared, printer_name)
         except Exception as e:

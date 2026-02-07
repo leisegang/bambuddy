@@ -172,3 +172,81 @@ class TestSpoolmanClient:
                 assert call_kwargs["remaining_weight"] == expected, (
                     f"Expected {expected}g for {remain}% of {weight}g, got {call_kwargs['remaining_weight']}"
                 )
+
+    # ========================================================================
+    # Tests for caching functionality
+    # ========================================================================
+
+    @pytest.mark.asyncio
+    async def test_find_spool_by_tag_with_cached_spools(self, client):
+        """Verify find_spool_by_tag uses cached spools when provided (no API call)."""
+        cached = [
+            {"id": 1, "extra": {"tag": '"ABC123"'}},
+            {"id": 2, "extra": {"tag": '"XYZ789"'}},
+        ]
+
+        with patch.object(client, "get_spools", AsyncMock()) as mock_get:
+            result = await client.find_spool_by_tag("ABC123", cached_spools=cached)
+            assert result["id"] == 1
+            mock_get.assert_not_called()  # Should NOT call get_spools
+
+    @pytest.mark.asyncio
+    async def test_find_spool_by_tag_without_cached_spools(self, client):
+        """Verify find_spool_by_tag fetches spools when cache not provided."""
+        mock_spools = [{"id": 1, "extra": {"tag": '"ABC123"'}}]
+
+        with patch.object(client, "get_spools", AsyncMock(return_value=mock_spools)) as mock_get:
+            result = await client.find_spool_by_tag("ABC123")
+            assert result["id"] == 1
+            mock_get.assert_called_once()  # Should call get_spools
+
+    @pytest.mark.asyncio
+    async def test_find_spools_by_location_prefix_with_cached_spools(self, client):
+        """Verify find_spools_by_location_prefix uses cached spools when provided."""
+        cached = [
+            {"id": 1, "location": "Printer1 - AMS A1"},
+            {"id": 2, "location": "Printer2 - AMS A1"},
+            {"id": 3, "location": "Printer1 - AMS A2"},
+        ]
+
+        with patch.object(client, "get_spools", AsyncMock()) as mock_get:
+            result = await client.find_spools_by_location_prefix("Printer1 - ", cached_spools=cached)
+            assert len(result) == 2
+            assert result[0]["id"] == 1
+            assert result[1]["id"] == 3
+            mock_get.assert_not_called()  # Should NOT call get_spools
+
+    @pytest.mark.asyncio
+    async def test_sync_ams_tray_with_cached_spools(self, client, sample_tray, existing_spool):
+        """Verify sync_ams_tray passes cached_spools to find_spool_by_tag."""
+        cached = [existing_spool]
+
+        with (
+            patch.object(client, "get_spools", AsyncMock()) as mock_get,
+            patch.object(client, "update_spool", AsyncMock(return_value={"id": 42})),
+        ):
+            await client.sync_ams_tray(sample_tray, "TestPrinter", cached_spools=cached)
+            mock_get.assert_not_called()  # Should NOT call get_spools
+
+    @pytest.mark.asyncio
+    async def test_clear_location_for_removed_spools_with_cached_spools(self, client):
+        """Verify clear_location_for_removed_spools uses cached spools."""
+        cached = [
+            {"id": 1, "location": "Printer1 - AMS A1", "extra": {"tag": '"TAG1"'}},
+            {"id": 2, "location": "Printer1 - AMS A2", "extra": {"tag": '"TAG2"'}},
+            {"id": 3, "location": "Printer1 - AMS A3", "extra": {"tag": '"TAG3"'}},
+        ]
+        current_tags = {"TAG1", "TAG2"}  # TAG3 was removed
+
+        with (
+            patch.object(client, "get_spools", AsyncMock()) as mock_get,
+            patch.object(client, "update_spool", AsyncMock(return_value={"id": 3})) as mock_update,
+        ):
+            cleared = await client.clear_location_for_removed_spools("Printer1", current_tags, cached_spools=cached)
+            assert cleared == 1
+            mock_get.assert_not_called()  # Should NOT call get_spools
+            mock_update.assert_called_once()
+            # Verify it cleared TAG3 (not in current_tags)
+            call_kwargs = mock_update.call_args.kwargs
+            assert call_kwargs["spool_id"] == 3
+            assert call_kwargs.get("clear_location") is True

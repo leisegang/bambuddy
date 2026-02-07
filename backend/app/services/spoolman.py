@@ -387,16 +387,18 @@ class SpoolmanClient:
             logger.error("Failed to record spool usage in Spoolman: %s", e)
             return None
 
-    async def find_spool_by_tag(self, tag_uid: str) -> dict | None:
+    async def find_spool_by_tag(self, tag_uid: str, cached_spools: list[dict] | None = None) -> dict | None:
         """Find a spool by its RFID tag UID.
 
         Args:
             tag_uid: The RFID tag UID to search for
+            cached_spools: Optional pre-fetched list of spools to search (avoids API call)
 
         Returns:
             Spool dictionary or None if not found.
         """
-        spools = await self.get_spools()
+        # Use cached spools if provided, otherwise fetch from API
+        spools = cached_spools if cached_spools is not None else await self.get_spools()
         # Normalize tag_uid for comparison (uppercase, strip quotes)
         search_tag = tag_uid.strip('"').upper()
 
@@ -412,16 +414,20 @@ class SpoolmanClient:
                         return spool
         return None
 
-    async def find_spools_by_location_prefix(self, location_prefix: str) -> list[dict]:
+    async def find_spools_by_location_prefix(
+        self, location_prefix: str, cached_spools: list[dict] | None = None
+    ) -> list[dict]:
         """Find all spools with locations starting with a given prefix.
 
         Args:
             location_prefix: The location prefix to search for (e.g., "PrinterName - ")
+            cached_spools: Optional pre-fetched list of spools to search (avoids API call)
 
         Returns:
             List of spool dictionaries with matching locations.
         """
-        spools = await self.get_spools()
+        # Use cached spools if provided, otherwise fetch from API
+        spools = cached_spools if cached_spools is not None else await self.get_spools()
         matching = []
         for spool in spools:
             location = spool.get("location", "")
@@ -433,6 +439,7 @@ class SpoolmanClient:
         self,
         printer_name: str,
         current_tray_uuids: set[str],
+        cached_spools: list[dict] | None = None,
     ) -> int:
         """Clear location for spools that are no longer in the AMS.
 
@@ -443,12 +450,13 @@ class SpoolmanClient:
         Args:
             printer_name: The printer name used as location prefix
             current_tray_uuids: Set of tray_uuids currently in the AMS
+            cached_spools: Optional pre-fetched list of spools to search (avoids API call)
 
         Returns:
             Number of spools whose location was cleared.
         """
         location_prefix = f"{printer_name} - "
-        spools_at_printer = await self.find_spools_by_location_prefix(location_prefix)
+        spools_at_printer = await self.find_spools_by_location_prefix(location_prefix, cached_spools=cached_spools)
         cleared_count = 0
 
         for spool in spools_at_printer:
@@ -662,7 +670,13 @@ class SpoolmanClient:
         """
         return (remain_percent / 100.0) * spool_weight
 
-    async def sync_ams_tray(self, tray: AMSTray, printer_name: str, disable_weight_sync: bool = False) -> dict | None:
+    async def sync_ams_tray(
+        self,
+        tray: AMSTray,
+        printer_name: str,
+        disable_weight_sync: bool = False,
+        cached_spools: list[dict] | None = None,
+    ) -> dict | None:
         """Sync a single AMS tray to Spoolman.
 
         Only syncs trays with valid Bambu Lab tray_uuid (32 hex characters).
@@ -676,6 +690,9 @@ class SpoolmanClient:
             printer_name: Name of the printer for location
             disable_weight_sync: If True, skip updating remaining_weight for existing spools.
                 This allows Spoolman's granular usage tracking to maintain accurate weights.
+            cached_spools: Optional pre-fetched list of spools to search (avoids API calls).
+                When provided, this cache is passed to find_spool_by_tag to avoid redundant
+                API calls during batch sync operations.
 
         Returns:
             Synced spool dictionary or None if skipped or failed.
@@ -716,7 +733,7 @@ class SpoolmanClient:
         location = f"{printer_name} - {self.convert_ams_slot_to_location(tray.ams_id, tray.tray_id)}"
 
         # Find existing spool by tag (tray_uuid or tag_uid, stored as "tag" in Spoolman)
-        existing = await self.find_spool_by_tag(spool_tag)
+        existing = await self.find_spool_by_tag(spool_tag, cached_spools=cached_spools)
         if existing:
             # Update existing spool
             logger.info("Updating existing spool %s for tag %s...", existing["id"], spool_tag[:16])
