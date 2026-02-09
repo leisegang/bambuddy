@@ -147,6 +147,8 @@ class PrinterState:
     # H2D per-extruder tray_now from snow field: {extruder_id: normalized_global_tray_id}
     # snow encodes AMS ID in high byte: ams_id = snow >> 8, slot = snow & 0xFF
     h2d_extruder_snow: dict = field(default_factory=dict)
+    # H2C nozzle rack: full device.nozzle.info array for tool-changer printers (>2 nozzles)
+    nozzle_rack: list = field(default_factory=list)
     # Timestamp of last AMS data update (for RFID refresh detection)
     last_ams_update: float = 0.0
     # Printable objects for skip object functionality: {identify_id: object_name}
@@ -1740,12 +1742,24 @@ class BambuMQTTClient:
         if "nozzle_diameter_2" in data:
             self.state.nozzles[1].nozzle_diameter = str(data["nozzle_diameter_2"])
 
-        # H2D series: Nozzle hardware info is in device.nozzle.info array
+        # H2D/H2C series: Nozzle hardware info is in device.nozzle.info array
         if "device" in data and isinstance(data["device"], dict):
             device = data["device"]
             nozzle_data = device.get("nozzle", {})
             nozzle_info = nozzle_data.get("info", [])
             if isinstance(nozzle_info, list):
+                # H2C tool-changer: >2 entries means nozzle rack (6 dock + 1 mounted = 7)
+                if len(nozzle_info) > 2:
+                    self.state.nozzle_rack = [
+                        {
+                            "id": n.get("id", i),
+                            "type": str(n.get("type", "")),
+                            "diameter": str(n.get("diameter", "")),
+                            "wear": n.get("wear"),
+                            "stat": n.get("stat"),
+                        }
+                        for i, n in enumerate(nozzle_info)
+                    ]
                 for nozzle in nozzle_info:
                     idx = nozzle.get("id", 0)
                     if idx < len(self.state.nozzles):
@@ -2049,8 +2063,10 @@ class BambuMQTTClient:
                         slot_id = tray_id % 4
                         ams_mapping2.append({"ams_id": ams_id, "slot_id": slot_id})
 
-            # H2D series requires integer values (0/1) for boolean fields
-            # Other printers (X1C, P1S, A1, etc.) require actual booleans
+            # H2D series requires integer values (0/1) for calibration/leveling fields
+            # but use_ams MUST remain boolean — H2D Pro firmware interprets integer
+            # values as nozzle index (1 = deputy nozzle), causing wrong extruder routing
+            # Other printers (X1C, P1S, A1, etc.) require actual booleans for all fields
             is_h2d = self.model and self.model.upper().strip() in ("H2D", "H2D PRO", "H2DPRO", "H2C", "H2S")
 
             command = {
@@ -2068,7 +2084,7 @@ class BambuMQTTClient:
                     "flow_cali": (1 if flow_cali else 0) if is_h2d else flow_cali,
                     "vibration_cali": (1 if vibration_cali else 0) if is_h2d else vibration_cali,
                     "layer_inspect": (1 if layer_inspect else 0) if is_h2d else layer_inspect,
-                    "use_ams": (1 if use_ams else 0) if is_h2d else use_ams,
+                    "use_ams": use_ams,
                     "cfg": "0",
                     "extrude_cali_flag": 0,
                     "extrude_cali_manual_mode": 0,
@@ -2082,7 +2098,10 @@ class BambuMQTTClient:
             }
 
             if is_h2d:
-                logger.info("[%s] H2D series detected: using integer format for boolean fields", self.serial_number)
+                logger.info(
+                    "[%s] H2D series detected: using integer format for calibration fields (use_ams stays boolean)",
+                    self.serial_number,
+                )
 
             # P2S-specific parameter adjustments
             # P2S printer doesn't support vibration calibration like X1/P1 series

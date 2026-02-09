@@ -129,6 +129,14 @@ export interface NozzleInfo {
   nozzle_diameter: string;  // e.g., "0.4"
 }
 
+export interface NozzleRackSlot {
+  id: number;
+  nozzle_type: string;
+  nozzle_diameter: string;
+  wear: number | null;
+  stat: number | null;  // Nozzle status (e.g. mounted/docked)
+}
+
 export interface PrintOptions {
   // Core AI detectors
   spaghetti_detector: boolean;
@@ -186,6 +194,7 @@ export interface PrinterStatus {
   ipcam: boolean;  // Live view enabled
   wifi_signal: number | null;  // WiFi signal strength in dBm
   nozzles: NozzleInfo[];  // Nozzle hardware info (index 0=left/primary, 1=right)
+  nozzle_rack: NozzleRackSlot[];  // H2C 6-nozzle tool-changer rack
   print_options: PrintOptions | null;  // AI detection and print options
   // Calibration stage tracking
   stg_cur: number;  // Current stage number (-1 = not calibrating)
@@ -751,6 +760,9 @@ export interface AppSettings {
   ha_enabled: boolean;
   ha_url: string;
   ha_token: string;
+  ha_url_from_env: boolean;
+  ha_token_from_env: boolean;
+  ha_env_managed: boolean;
   // File Manager / Library settings
   library_archive_mode: 'always' | 'never' | 'ask';
   library_disk_warning_gb: number;
@@ -1619,8 +1631,14 @@ export interface UnlinkedSpool {
   location: string | null;
 }
 
+export interface LinkedSpoolInfo {
+  id: number;
+  remaining_weight: number | null;
+  filament_weight: number | null;
+}
+
 export interface LinkedSpoolsMap {
-  linked: Record<string, number>; // tag (uppercase) -> spool_id
+  linked: Record<string, LinkedSpoolInfo>; // tag (uppercase) -> spool info
 }
 
 // Update types
@@ -3925,6 +3943,7 @@ export interface DiscoveryInfo {
   is_docker: boolean;
   ssdp_running: boolean;
   scan_running: boolean;
+  subnets: string[];
 }
 
 export interface SubnetScanStatus {

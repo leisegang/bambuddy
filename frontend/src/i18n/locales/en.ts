@@ -115,7 +115,7 @@ export default {
     deletePrinter: 'Delete Printer',
     printerName: 'Printer Name',
     serialNumber: 'Serial Number',
-    ipAddress: 'IP Address',
+    ipAddress: 'IP Address / Hostname',
     accessCode: 'Access Code',
     model: 'Model',
     nozzleCount: 'Nozzle Count',
@@ -207,6 +207,7 @@ export default {
     reconnect: 'Reconnect',
     mqttDebug: 'MQTT Debug',
     activeNozzle: 'Active: {{nozzle}} nozzle',
+    nozzleRack: 'Nozzle Rack',
     // Firmware
     firmwareUpdate: 'Firmware Update',
     firmwareInstructions: 'On the printer\'s touchscreen, go to',
@@ -1093,6 +1094,10 @@ export default {
     enableRetry: 'Enable retry',
     // Home Assistant
     homeAssistantDescription: 'Control smart plugs via Home Assistant',
+    environmentManagedLabel: '(Environment Managed)',
+    autoEnabledViaEnv: 'Automatically enabled via environment variables',
+    urlFromEnvReadOnly: 'Value set by HA_URL environment variable (read-only)',
+    tokenFromEnvReadOnly: 'Value set by HA_TOKEN environment variable (read-only)',
     // MQTT
     mqttConnectedTo: 'Connected to',
     // Prometheus
@@ -1506,6 +1511,7 @@ export default {
     recording: 'Recording',
     startRecording: 'Start Recording',
     stopRecording: 'Stop Recording',
+    chamberLight: 'Toggle chamber light',
   },
 
   // Groups management
@@ -1803,6 +1809,12 @@ export default {
   support: {
     debugLoggingActive: 'Debug logging is active',
     manageLogs: 'Manage',
+    collectItem7: 'Printer connectivity and firmware versions',
+    collectItem8: 'Integration status (Spoolman, MQTT, HA)',
+    collectItem9: 'Network interfaces (subnets only)',
+    collectItem10: 'Python package versions',
+    collectItem11: 'Database health checks',
+    collectItem12: 'Docker environment details',
   },
 
   // File manager
@@ -2179,6 +2191,7 @@ export default {
     linkSuccess: 'Spool linked to Spoolman successfully',
     linkFailed: 'Failed to link spool',
     spoolId: 'Spool ID',
+    fillSourceLabel: '(Spoolman)',
     weight: 'Weight',
     remaining: 'Remaining',
     disableWeightSync: 'Disable AMS Estimated Weight Sync',
