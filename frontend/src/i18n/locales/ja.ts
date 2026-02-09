@@ -2085,6 +2085,8 @@ export default {
     subtitle: 'アカウントにサインイン',
     username: 'ユーザー名',
     usernamePlaceholder: 'ユーザー名を入力',
+    usernameOrEmail: 'ユーザー名またはメール',
+    usernameOrEmailPlaceholder: 'ユーザー名または @ メール',
     password: 'パスワード',
     passwordPlaceholder: 'パスワードを入力',
     loggingIn: 'ログイン中...',
@@ -2092,6 +2094,12 @@ export default {
     enterCredentials: 'ユーザー名とパスワードを入力してください',
     success: 'ログインしました',
     failed: 'ログインに失敗しました',
+    forgotPasswordEmailMessage: 'メールアドレスを入力すると、新しいパスワードを送信します。',
+    emailAddress: 'メールアドレス',
+    emailPlaceholder: 'your.email@example.com',
+    cancel: 'キャンセル',
+    sending: '送信中...',
+    sendResetEmail: 'リセットメールを送信',
   },
 
   // セットアップページ
