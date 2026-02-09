@@ -3426,6 +3426,25 @@ export function SettingsPage() {
             </CardContent>
           </Card>
 
+          {/* Advanced Authentication Notice Box */}
+          {advancedAuthStatus?.advanced_auth_enabled && (
+            <Card className="border-blue-500/30 bg-blue-500/5">
+              <CardContent className="py-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-500/20 flex-shrink-0">
+                    <Mail className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-medium">{t('settings.email.advancedAuthEnabled')}</h3>
+                    <p className="text-sm text-bambu-gray mt-1">
+                      {t('settings.email.advancedAuthEnabledDesc')}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {authEnabled && (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               {/* Left Column: Current User + User List */}
@@ -3860,8 +3879,11 @@ export function SettingsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {/* Username Field */}
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">{t('settings.username')}</label>
+                  <label className="block text-sm font-medium text-white mb-2">
+                    {t('settings.username')} {advancedAuthStatus?.advanced_auth_enabled && <span className="text-red-400">*</span>}
+                  </label>
                   <input
                     type="text"
                     value={userFormData.username}
@@ -3871,43 +3893,75 @@ export function SettingsPage() {
                     autoComplete="username"
                   />
                 </div>
+
+                {/* Email Field */}
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">
-                    Password <span className="text-bambu-gray font-normal">(leave blank to keep current)</span>
+                    {t('users.form.email') || 'Email'} {advancedAuthStatus?.advanced_auth_enabled ? <span className="text-red-400">*</span> : <span className="text-bambu-gray font-normal">({t('users.form.optional') || 'optional'})</span>}
                   </label>
                   <input
-                    type="password"
-                    value={userFormData.password}
-                    onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value, confirmPassword: '' })}
+                    type="email"
+                    value={userFormData.email}
+                    onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
                     className="w-full px-4 py-3 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:outline-none focus:ring-2 focus:ring-bambu-green/50 focus:border-bambu-green transition-colors"
-                    placeholder={t('settings.enterNewPassword')}
-                    autoComplete="new-password"
-                    minLength={6}
+                    placeholder={t('users.form.emailPlaceholder') || 'user@example.com'}
+                    required={advancedAuthStatus?.advanced_auth_enabled}
                   />
                 </div>
-                {userFormData.password && (
-                  <div>
-                    <label className="block text-sm font-medium text-white mb-2">{t('settings.confirmPassword')}</label>
-                    <input
-                      type="password"
-                      value={userFormData.confirmPassword}
-                      onChange={(e) => setUserFormData({ ...userFormData, confirmPassword: e.target.value })}
-                      className={`w-full px-4 py-3 bg-bambu-dark-secondary border rounded-lg text-white placeholder-bambu-gray focus:outline-none focus:ring-2 focus:ring-bambu-green/50 focus:border-bambu-green transition-colors ${
-                        userFormData.confirmPassword && userFormData.password !== userFormData.confirmPassword
-                          ? 'border-red-500'
-                          : 'border-bambu-dark-tertiary'
-                      }`}
-                      placeholder={t('settings.confirmNewPassword')}
-                      autoComplete="new-password"
-                      minLength={6}
-                    />
-                    {userFormData.confirmPassword && userFormData.password !== userFormData.confirmPassword && (
-                      <p className="text-red-400 text-xs mt-1">{t('settings.passwordsDoNotMatch')}</p>
+
+                {/* Password Fields - only show when Advanced Auth is disabled */}
+                {!advancedAuthStatus?.advanced_auth_enabled && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-white mb-2">
+                        {t('users.form.password') || 'Password'} <span className="text-bambu-gray font-normal">({t('users.form.leaveBlankToKeep') || 'leave blank to keep current'})</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={userFormData.password}
+                        onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value, confirmPassword: '' })}
+                        className="w-full px-4 py-3 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:outline-none focus:ring-2 focus:ring-bambu-green/50 focus:border-bambu-green transition-colors"
+                        placeholder={t('settings.enterNewPassword')}
+                        autoComplete="new-password"
+                        minLength={6}
+                      />
+                    </div>
+                    {userFormData.password && (
+                      <div>
+                        <label className="block text-sm font-medium text-white mb-2">{t('settings.confirmPassword')}</label>
+                        <input
+                          type="password"
+                          value={userFormData.confirmPassword}
+                          onChange={(e) => setUserFormData({ ...userFormData, confirmPassword: e.target.value })}
+                          className={`w-full px-4 py-3 bg-bambu-dark-secondary border rounded-lg text-white placeholder-bambu-gray focus:outline-none focus:ring-2 focus:ring-bambu-green/50 focus:border-bambu-green transition-colors ${
+                            userFormData.confirmPassword && userFormData.password !== userFormData.confirmPassword
+                              ? 'border-red-500'
+                              : 'border-bambu-dark-tertiary'
+                          }`}
+                          placeholder={t('settings.confirmNewPassword')}
+                          autoComplete="new-password"
+                          minLength={6}
+                        />
+                        {userFormData.confirmPassword && userFormData.password !== userFormData.confirmPassword && (
+                          <p className="text-red-400 text-xs mt-1">{t('settings.passwordsDoNotMatch')}</p>
+                        )}
+                      </div>
                     )}
+                  </>
+                )}
+
+                {/* Info box about auto-generated password when Advanced Auth is enabled */}
+                {advancedAuthStatus?.advanced_auth_enabled && (
+                  <div className="bg-bambu-dark-secondary/50 border border-bambu-green/20 rounded-lg p-3">
+                    <p className="text-sm text-bambu-gray">
+                      {t('users.form.passwordManagedByAdvancedAuth') || 'Password is managed by Advanced Authentication. Use "Reset Password" to send a new password to the user via email.'}
+                    </p>
                   </div>
                 )}
+
+                {/* Groups Field */}
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">Groups</label>
+                  <label className="block text-sm font-medium text-white mb-2">{t('users.form.groups') || 'Groups'}</label>
                   <div className="space-y-2 max-h-40 overflow-y-auto p-2 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg">
                     {groupsData.map(group => (
                       <label
@@ -3922,7 +3976,7 @@ export function SettingsPage() {
                         />
                         <span className="text-sm text-white">{group.name}</span>
                         {group.is_system && (
-                          <span className="text-xs text-yellow-400">(System)</span>
+                          <span className="text-xs text-yellow-400">({t('users.system') || 'System'})</span>
                         )}
                       </label>
                     ))}
@@ -3938,21 +3992,26 @@ export function SettingsPage() {
                     setUserFormData({ username: '', password: '', email: '', confirmPassword: '', role: 'user', group_ids: [] });
                   }}
                 >
-                  Cancel
+                  {t('users.modal.cancel') || 'Cancel'}
                 </Button>
                 <Button
                   onClick={() => handleUpdateUser(editingUserId)}
-                  disabled={updateUserMutation.isPending || !userFormData.username || !!(userFormData.password && (userFormData.password !== userFormData.confirmPassword || userFormData.password.length < 6))}
+                  disabled={
+                    updateUserMutation.isPending || 
+                    !userFormData.username || 
+                    (advancedAuthStatus?.advanced_auth_enabled && !userFormData.email) ||
+                    Boolean(!advancedAuthStatus?.advanced_auth_enabled && userFormData.password && (userFormData.password !== userFormData.confirmPassword || userFormData.password.length < 6))
+                  }
                 >
                   {updateUserMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Saving...
+                      {t('users.modal.saving') || 'Saving...'}
                     </>
                   ) : (
                     <>
                       <Save className="w-4 h-4" />
-                      Save Changes
+                      {t('users.modal.saveChanges') || 'Save Changes'}
                     </>
                   )}
                 </Button>

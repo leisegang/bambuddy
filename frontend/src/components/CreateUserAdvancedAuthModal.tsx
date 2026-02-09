@@ -84,7 +84,7 @@ export function CreateUserAdvancedAuthModal({
             {/* Username Field */}
             <div>
               <label className="block text-sm font-medium text-white mb-2">
-                {t('users.form.username')}
+                {t('users.form.username')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -93,6 +93,7 @@ export function CreateUserAdvancedAuthModal({
                 className="w-full px-4 py-3 bg-bambu-dark-secondary border border-bambu-dark-tertiary rounded-lg text-white placeholder-bambu-gray focus:outline-none focus:ring-2 focus:ring-bambu-green/50 focus:border-bambu-green transition-colors"
                 placeholder={t('users.form.usernamePlaceholder')}
                 autoComplete="username"
+                required
               />
             </div>
 

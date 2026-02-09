@@ -41,6 +41,7 @@ from backend.app.services.email_service import (
     save_smtp_settings,
     send_email,
 )
+from backend.app.api.routes.settings import get_external_login_url
 
 
 def _user_to_response(user: User) -> UserResponse:
@@ -524,7 +525,6 @@ async def get_advanced_auth_status(db: AsyncSession = Depends(get_db)):
 async def forgot_password(request: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
     """Request password reset via email (advanced auth only)."""
     import logging
-    import os
 
     logger = logging.getLogger(__name__)
 
@@ -556,8 +556,7 @@ async def forgot_password(request: ForgotPasswordRequest, db: AsyncSession = Dep
             user.password_hash = get_password_hash(new_password)
             await db.commit()
 
-            # Get login URL from environment or use default
-            login_url = os.environ.get("APP_URL", "http://localhost:5173") + "/login"
+            login_url = await get_external_login_url(db)
 
             # Send password reset email
             subject, text_body, html_body = create_password_reset_email(user.username, new_password, login_url)
@@ -581,7 +580,6 @@ async def reset_user_password(
 ):
     """Reset a user's password and send them an email (admin only, advanced auth only)."""
     import logging
-    import os
 
     logger = logging.getLogger(__name__)
 
@@ -632,8 +630,7 @@ async def reset_user_password(
         user.password_hash = get_password_hash(new_password)
         await db.commit()
 
-        # Get login URL from environment or use default
-        login_url = os.environ.get("APP_URL", "http://localhost:5173") + "/login"
+        login_url = await get_external_login_url(db)
 
         # Send password reset email
         subject, text_body, html_body = create_password_reset_email(user.username, new_password, login_url)
