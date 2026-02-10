@@ -159,4 +159,5 @@ class TestEmailTemplateFormatting:
 
         # Verify that script tags are escaped
         assert "&lt;script&gt;" in html_body
-        assert "<script>" not in html_body or html_body.count("<script>") == 0  # No unescaped script tags
+        # Verify no unescaped script tags
+        assert "<script>" not in html_body
