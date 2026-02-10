@@ -457,10 +457,11 @@ function nozzleFlowName(type: string, t: (key: string) => string): string {
 
 // Per-slot hover card for nozzle rack
 // activeStatus: when true, show "Active" instead of "Mounted"/"Docked" (for hotend nozzles)
-function NozzleSlotHoverCard({ slot, index, activeStatus, children }: {
+function NozzleSlotHoverCard({ slot, index, activeStatus, filamentName, children }: {
   slot: import('../api/client').NozzleRackSlot;
   index: number;
   activeStatus?: boolean;
+  filamentName?: string;
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
@@ -600,7 +601,7 @@ function NozzleSlotHoverCard({ slot, index, activeStatus, children }: {
                       {filamentCss && (
                         <div className="w-3 h-3 rounded-sm border border-white/20" style={{ backgroundColor: filamentCss }} />
                       )}
-                      <span className="text-[10px] text-white font-semibold">{slot.filament_type || slot.filament_id || ''}</span>
+                      <span className="text-[10px] text-white font-semibold truncate max-w-[100px]">{filamentName || slot.filament_type || slot.filament_id || ''}</span>
                     </div>
                   </div>
                 )}
@@ -775,7 +776,7 @@ function DualNozzleHoverCard({ leftSlot, rightSlot, activeNozzle, children }: {
 }
 
 // H2C Nozzle Rack Card — compact single row showing 6-position tool-changer dock
-function NozzleRackCard({ slots }: { slots: import('../api/client').NozzleRackSlot[] }) {
+function NozzleRackCard({ slots, filamentInfo }: { slots: import('../api/client').NozzleRackSlot[]; filamentInfo?: Record<string, { name: string; k: number | null }> }) {
   const { t } = useTranslation();
   // Rack nozzles only (IDs >= 2) — excludes L/R hotend nozzles (IDs 0, 1)
   // H2C rack IDs are 16-21 — map by actual ID so empty slots appear in the correct position
@@ -799,7 +800,7 @@ function NozzleRackCard({ slots }: { slots: import('../api/client').NozzleRackSl
           const filamentBg = !isEmpty ? parseFilamentColor(slot.filament_color) : null;
 
           return (
-            <NozzleSlotHoverCard key={slot.id >= 0 ? slot.id : `empty-${i}`} slot={slot} index={i}>
+            <NozzleSlotHoverCard key={slot.id >= 0 ? slot.id : `empty-${i}`} slot={slot} index={i} filamentName={slot.filament_id ? filamentInfo?.[slot.filament_id]?.name : undefined}>
               <div
                 className={`w-7 h-7 rounded flex items-center justify-center cursor-default transition-colors border-b-2 ${
                   isEmpty
@@ -1106,7 +1107,8 @@ function getPrinterImage(model: string | null | undefined): string {
   if (modelLower.includes('x1c') || modelLower.includes('x1carbon')) return '/img/printers/x1c.png';
   if (modelLower.includes('x1')) return '/img/printers/x1c.png';
   if (modelLower.includes('h2d')) return '/img/printers/h2d.png';
-  if (modelLower.includes('h2c') || modelLower.includes('h2s')) return '/img/printers/h2d.png';
+  if (modelLower.includes('h2c')) return '/img/printers/h2c.png';
+  if (modelLower.includes('h2s')) return '/img/printers/h2d.png';
   if (modelLower.includes('p2s')) return '/img/printers/p1s.png';
   if (modelLower.includes('p1s')) return '/img/printers/p1s.png';
   if (modelLower.includes('p1p')) return '/img/printers/p1p.png';
@@ -1438,8 +1440,15 @@ function PrinterCard({
     if (status?.vt_tray?.tray_info_idx) {
       ids.add(status.vt_tray.tray_info_idx);
     }
+    if (status?.nozzle_rack) {
+      for (const slot of status.nozzle_rack) {
+        if (slot.filament_id) {
+          ids.add(slot.filament_id);
+        }
+      }
+    }
     return Array.from(ids);
-  }, [status?.ams, status?.vt_tray]);
+  }, [status?.ams, status?.vt_tray, status?.nozzle_rack]);
 
   // Fetch cloud filament info for tooltips (name includes color, also has K value)
   const { data: filamentInfo } = useQuery({
@@ -2400,7 +2409,7 @@ function PrinterCard({
                         </p>
                       </>
                     ) : leftNozzleSlot ? (
-                      <NozzleSlotHoverCard slot={leftNozzleSlot} index={0} activeStatus>
+                      <NozzleSlotHoverCard slot={leftNozzleSlot} index={0} activeStatus filamentName={leftNozzleSlot.filament_id ? filamentInfo?.[leftNozzleSlot.filament_id]?.name : undefined}>
                         <div className="cursor-default">
                           <p className="text-[9px] text-bambu-gray">{t('printers.temperatures.nozzle')}</p>
                           <p className="text-[11px] text-white">
@@ -2452,7 +2461,7 @@ function PrinterCard({
                   )}
                   {/* H2C nozzle rack (tool-changer dock) — only show when rack nozzles exist (IDs >= 2) */}
                   {status.nozzle_rack && status.nozzle_rack.some(s => s.id >= 2) && (
-                    <NozzleRackCard slots={status.nozzle_rack} />
+                    <NozzleRackCard slots={status.nozzle_rack} filamentInfo={filamentInfo} />
                   )}
                 </div>
               );

@@ -308,6 +308,68 @@ _filament_cache_time: float = 0
 FILAMENT_CACHE_TTL = 300  # 5 minutes
 
 
+async def _enrich_from_local_presets(
+    unresolved_ids: list[str],
+    result: dict,
+    db: AsyncSession,
+) -> dict:
+    """Fall back to local profiles for filament IDs not resolved by cloud.
+
+    Matches by checking the setting_id field inside the local preset's
+    resolved JSON blob (stored in the 'setting' column).
+    """
+    from sqlalchemy import text
+
+    from backend.app.models.local_preset import LocalPreset
+
+    # Build lookup: converted setting_id -> original filament_id
+    id_map: dict[str, str] = {}
+    for fid in unresolved_ids:
+        converted = _filament_id_to_setting_id(fid)
+        id_map[converted] = fid
+        # Also map the original in case the JSON uses that form
+        id_map[fid] = fid
+
+    try:
+        # Query filament presets that have a setting_id matching any of our IDs
+        # json_extract is supported in SQLite >= 3.9 and all modern Python builds
+        candidates = await db.execute(
+            select(LocalPreset).where(
+                LocalPreset.preset_type == "filament",
+                text("json_extract(setting, '$.setting_id') IS NOT NULL"),
+            )
+        )
+        for preset in candidates.scalars().all():
+            try:
+                setting_data = json.loads(preset.setting) if isinstance(preset.setting, str) else preset.setting
+                preset_setting_id = setting_data.get("setting_id", "")
+                if preset_setting_id in id_map:
+                    original_id = id_map[preset_setting_id]
+                    info = {"name": preset.name, "k": None}
+                    # Try to extract K value from the local preset
+                    pa = setting_data.get("pressure_advance")
+                    if pa is not None:
+                        try:
+                            k_val = float(pa[0]) if isinstance(pa, list) else float(pa)
+                            info["k"] = k_val
+                        except (ValueError, TypeError, IndexError):
+                            pass
+                    _filament_cache[original_id] = info
+                    result[original_id] = info
+            except Exception:
+                continue
+    except Exception as e:
+        logger.warning("Failed to search local presets for filament info: %s", e)
+
+    # Fill remaining unresolved with empty entries
+    for fid in unresolved_ids:
+        if fid not in result:
+            _filament_cache[fid] = {"name": "", "k": None}
+            result[fid] = {"name": "", "k": None}
+
+    return result
+
+
 def _filament_id_to_setting_id(filament_id: str) -> str:
     """
     Convert filament_id to setting_id format for Bambu Cloud API.
@@ -345,7 +407,8 @@ async def get_filament_info(
     """
     Get filament preset info (name and K value) for multiple setting IDs.
 
-    Used to enrich AMS tray tooltips with cloud preset data.
+    Used to enrich AMS tray and nozzle rack tooltips with preset data.
+    Lookup order: cache → cloud → local profiles → empty fallback.
     """
     import time
 
@@ -358,58 +421,58 @@ async def get_filament_info(
         _filament_cache = {}
         _filament_cache_time = time.time()
 
-    token, _ = await get_stored_token(db)
-    if not token:
-        logger.info("get_filament_info: Not authenticated, returning empty")
-        # Return empty results if not authenticated (graceful degradation)
-        return {}
-
-    cloud = get_cloud_service()
-    cloud.set_token(token)
-
-    if not cloud.is_authenticated:
-        return {}
-
     result = {}
+    unresolved_ids: list[str] = []
+
+    # Phase 1: Check cache
     for setting_id in setting_ids:
         if not setting_id:
             continue
-
-        # Check cache first
         if setting_id in _filament_cache:
             result[setting_id] = _filament_cache[setting_id]
-            continue
+        else:
+            unresolved_ids.append(setting_id)
 
-        try:
-            # Transform filament_id to setting_id format (GFA00 -> GFSA00)
-            api_setting_id = _filament_id_to_setting_id(setting_id)
+    # Phase 2: Try cloud for uncached IDs
+    if unresolved_ids:
+        token, _ = await get_stored_token(db)
+        if token:
+            cloud = get_cloud_service()
+            cloud.set_token(token)
 
-            data = await cloud.get_setting_detail(api_setting_id)
-            setting = data.get("setting", {})
+            if cloud.is_authenticated:
+                still_unresolved: list[str] = []
+                for setting_id in unresolved_ids:
+                    try:
+                        api_setting_id = _filament_id_to_setting_id(setting_id)
+                        data = await cloud.get_setting_detail(api_setting_id)
+                        setting = data.get("setting", {})
+                        name = data.get("name", "")
+                        k_value = setting.get("pressure_advance")
+                        if k_value is not None:
+                            try:
+                                k_value = float(k_value)
+                            except (ValueError, TypeError):
+                                k_value = None
 
-            # Extract name (e.g., "Bambu PLA Basic Jade White")
-            name = data.get("name", "")
+                        info = {"name": name, "k": k_value}
+                        _filament_cache[setting_id] = info
+                        result[setting_id] = info
 
-            # Extract K value (pressure_advance)
-            k_value = setting.get("pressure_advance")
-            if k_value is not None:
-                try:
-                    k_value = float(k_value)
-                except (ValueError, TypeError):
-                    k_value = None
+                        if not name:
+                            still_unresolved.append(setting_id)
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to get cloud preset {setting_id} "
+                            f"(API ID: {_filament_id_to_setting_id(setting_id)}): {e}"
+                        )
+                        still_unresolved.append(setting_id)
 
-            info = {"name": name, "k": k_value}
-            # Cache using original ID so frontend gets expected response
-            _filament_cache[setting_id] = info
-            result[setting_id] = info
+                unresolved_ids = still_unresolved
 
-        except Exception as e:
-            logger.warning(
-                f"Failed to get cloud preset {setting_id} (API ID: {_filament_id_to_setting_id(setting_id)}): {e}"
-            )
-            # Cache the failure to avoid repeated requests
-            _filament_cache[setting_id] = {"name": "", "k": None}
-            result[setting_id] = {"name": "", "k": None}
+    # Phase 3: Try local profiles for any IDs still without a name
+    if unresolved_ids:
+        result = await _enrich_from_local_presets(unresolved_ids, result, db)
 
     return result
 
