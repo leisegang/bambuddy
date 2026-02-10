@@ -1182,6 +1182,30 @@ export default {
       feature2: 'ユーザーはユーザー名またはメールでログインできます',
       feature3: 'パスワード忘れ機能が利用可能です',
       feature4: '管理者はメールでユーザーパスワードをリセットできます',
+      // Error messages
+      errors: {
+        requiredFields: 'すべての必須フィールドに入力してください',
+        usernameRequired: '認証が有効な場合、ユーザー名は必須です',
+        enterTestEmail: 'テストメールアドレスを入力してください',
+        smtpServerAndEmail: 'テストする前にSMTPサーバーと送信元メールを入力してください',
+        usernamePasswordRequired: '認証が有効な場合、ユーザー名とパスワードは必須です',
+        configureSmtpFirst: '最初にSMTP設定を構成してテストしてください',
+      },
+      // Success messages
+      success: {
+        settingsSaved: 'SMTP設定を保存しました',
+      },
+      // Security options
+      securityOptions: {
+        starttls: 'STARTTLS (ポート 587)',
+        ssl: 'SSL/TLS (ポート 465)',
+        none: 'なし (ポート 25)',
+      },
+      // Authentication options
+      authOptions: {
+        enabled: '有効',
+        disabled: '無効',
+      },
     },
 
     // General - Date/Time

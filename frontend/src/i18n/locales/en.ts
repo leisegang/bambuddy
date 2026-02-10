@@ -1030,6 +1030,30 @@ export default {
       feature2: 'Users can login with username or email',
       feature3: 'Forgot password feature is available',
       feature4: 'Admins can reset user passwords via email',
+      // Error messages
+      errors: {
+        requiredFields: 'Please fill in all required fields',
+        usernameRequired: 'Username is required when authentication is enabled',
+        enterTestEmail: 'Please enter a test email address',
+        smtpServerAndEmail: 'Please fill in SMTP Server and From Email before testing',
+        usernamePasswordRequired: 'Username and Password are required when authentication is enabled',
+        configureSmtpFirst: 'Please configure and test SMTP settings first',
+      },
+      // Success messages
+      success: {
+        settingsSaved: 'SMTP settings saved successfully',
+      },
+      // Security options
+      securityOptions: {
+        starttls: 'STARTTLS (Port 587)',
+        ssl: 'SSL/TLS (Port 465)',
+        none: 'None (Port 25)',
+      },
+      // Authentication options
+      authOptions: {
+        enabled: 'Enabled',
+        disabled: 'Disabled',
+      },
     },
     appearance: 'Appearance',
     notifications: 'Notifications',

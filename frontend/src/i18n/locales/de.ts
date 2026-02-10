@@ -1030,6 +1030,30 @@ export default {
       feature2: 'Benutzer können sich mit Benutzername oder E-Mail anmelden',
       feature3: 'Passwort vergessen Funktion ist verfügbar',
       feature4: 'Administratoren können Benutzerpasswörter per E-Mail zurücksetzen',
+      // Error messages
+      errors: {
+        requiredFields: 'Bitte füllen Sie alle Pflichtfelder aus',
+        usernameRequired: 'Benutzername ist erforderlich, wenn Authentifizierung aktiviert ist',
+        enterTestEmail: 'Bitte geben Sie eine Test-E-Mail-Adresse ein',
+        smtpServerAndEmail: 'Bitte füllen Sie SMTP-Server und Absender-E-Mail aus, bevor Sie testen',
+        usernamePasswordRequired: 'Benutzername und Passwort sind erforderlich, wenn Authentifizierung aktiviert ist',
+        configureSmtpFirst: 'Bitte konfigurieren und testen Sie zuerst die SMTP-Einstellungen',
+      },
+      // Success messages
+      success: {
+        settingsSaved: 'SMTP-Einstellungen erfolgreich gespeichert',
+      },
+      // Security options
+      securityOptions: {
+        starttls: 'STARTTLS (Port 587)',
+        ssl: 'SSL/TLS (Port 465)',
+        none: 'Keine (Port 25)',
+      },
+      // Authentication options
+      authOptions: {
+        enabled: 'Aktiviert',
+        disabled: 'Deaktiviert',
+      },
     },
     appearance: 'Erscheinungsbild',
     notifications: 'Benachrichtigungen',
