@@ -378,6 +378,7 @@ export default {
     openCameraWindow: 'Apri camera in nuova finestra',
     // Firmware
     firmwareUpdateAvailable: 'Aggiornamento firmware disponibile: {{current}} → {{latest}}',
+    firmwareUpToDate: 'Firmware {{version}} — Aggiornato',
     firmwareUpdateButton: 'Aggiorna',
     // Plate detection
     plateDetection: {
@@ -414,6 +415,7 @@ export default {
     // Firmware modal
     firmwareModal: {
       title: 'Aggiornamento Firmware',
+      titleUpToDate: 'Info Firmware',
       currentVersion: 'Corrente:',
       latestVersion: 'Ultima:',
       releaseNotes: 'Note di rilascio',
@@ -428,6 +430,7 @@ export default {
       done: 'Fatto',
       starting: 'Avvio...',
       uploadFirmware: 'Carica Firmware',
+      uploadFailed: 'Avvio caricamento fallito: {{error}}',
       uploadedToast: 'Firmware caricato! Avvia aggiornamento dal display.',
     },
     accessCodePlaceholder: 'Lascia vuoto per mantenere quello attuale',

@@ -378,6 +378,7 @@ export default {
     openCameraWindow: 'Open camera in new window',
     // Firmware
     firmwareUpdateAvailable: 'Firmware update available: {{current}} → {{latest}}',
+    firmwareUpToDate: 'Firmware {{version}} — Up to date',
     firmwareUpdateButton: 'Update',
     // Plate detection
     plateDetection: {
@@ -414,6 +415,7 @@ export default {
     // Firmware modal
     firmwareModal: {
       title: 'Firmware Update',
+      titleUpToDate: 'Firmware Info',
       currentVersion: 'Current:',
       latestVersion: 'Latest:',
       releaseNotes: 'Release Notes',
@@ -428,6 +430,7 @@ export default {
       done: 'Done',
       starting: 'Starting...',
       uploadFirmware: 'Upload Firmware',
+      uploadFailed: 'Failed to start upload: {{error}}',
       uploadedToast: 'Firmware uploaded! Trigger update from printer screen.',
     },
     accessCodePlaceholder: 'Leave empty to keep current',

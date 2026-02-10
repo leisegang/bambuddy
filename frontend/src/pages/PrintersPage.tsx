@@ -1260,7 +1260,7 @@ function PrinterCard({
     queryFn: () => firmwareApi.checkPrinterUpdate(printer.id),
     staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
-    enabled: checkPrinterFirmware,
+    enabled: checkPrinterFirmware && hasPermission('firmware:read'),
   });
 
   // Collect unique tray_info_idx values for cloud filament info lookup
@@ -1991,15 +1991,23 @@ function PrinterCard({
                   {queueCount}
                 </button>
               )}
-              {/* Firmware Update Badge */}
-              {firmwareInfo?.update_available && (
+              {/* Firmware Version Badge */}
+              {firmwareInfo?.current_version && (
                 <button
                   onClick={() => setShowFirmwareModal(true)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-orange-500/20 text-orange-400 hover:opacity-80 transition-opacity"
-                  title={t('printers.firmwareUpdateAvailable', { current: firmwareInfo.current_version, latest: firmwareInfo.latest_version })}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs hover:opacity-80 transition-opacity ${
+                    firmwareInfo.update_available
+                      ? 'bg-orange-500/20 text-orange-400'
+                      : 'bg-status-ok/20 text-status-ok'
+                  }`}
+                  title={
+                    firmwareInfo.update_available
+                      ? t('printers.firmwareUpdateAvailable', { current: firmwareInfo.current_version, latest: firmwareInfo.latest_version })
+                      : t('printers.firmwareUpToDate', { version: firmwareInfo.current_version })
+                  }
                 >
-                  <Download className="w-3 h-3" />
-                  {t('printers.firmwareUpdateButton')}
+                  {firmwareInfo.update_available ? <Download className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+                  {firmwareInfo.current_version}
                 </button>
               )}
             </div>
@@ -4045,15 +4053,18 @@ function FirmwareUpdateModal({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { hasPermission } = useAuth();
+  const canUpdate = hasPermission('firmware:update');
   const [uploadStatus, setUploadStatus] = useState<FirmwareUploadStatus | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
 
-  // Prepare check query
+  // Prepare check query (only when update available and user can update)
   const { data: prepareInfo, isLoading: isPreparing } = useQuery({
     queryKey: ['firmwarePrepare', printer.id],
     queryFn: () => firmwareApi.prepareUpload(printer.id),
     staleTime: 30000,
+    enabled: firmwareInfo.update_available && canUpdate,
   });
 
   // Start upload mutation
@@ -4082,7 +4093,7 @@ function FirmwareUpdateModal({
       setPollInterval(interval);
     },
     onError: (error: Error) => {
-      showToast(`Failed to start upload: ${error.message}`, 'error');
+      showToast(t('printers.firmwareModal.uploadFailed', { error: error.message }), 'error');
       setIsUploading(false);
     },
   });
@@ -4104,11 +4115,15 @@ function FirmwareUpdateModal({
       <Card className="w-full max-w-md mx-4">
         <CardContent>
           <div className="flex items-start gap-3 mb-4">
-            <div className="p-2 rounded-full bg-orange-500/20">
-              <Download className="w-5 h-5 text-orange-400" />
+            <div className={`p-2 rounded-full ${firmwareInfo.update_available ? 'bg-orange-500/20' : 'bg-status-ok/20'}`}>
+              {firmwareInfo.update_available
+                ? <Download className="w-5 h-5 text-orange-400" />
+                : <CheckCircle className="w-5 h-5 text-status-ok" />}
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-white">{t('printers.firmwareModal.title')}</h3>
+              <h3 className="text-lg font-semibold text-white">
+                {firmwareInfo.update_available ? t('printers.firmwareModal.title') : t('printers.firmwareModal.titleUpToDate')}
+              </h3>
               <p className="text-sm text-bambu-gray mt-1">
                 {printer.name}
               </p>
@@ -4119,15 +4134,19 @@ function FirmwareUpdateModal({
           <div className="bg-bambu-dark rounded-lg p-3 mb-4">
             <div className="flex justify-between items-center text-sm">
               <span className="text-bambu-gray">{t('printers.firmwareModal.currentVersion')}</span>
-              <span className="text-white font-mono">{firmwareInfo.current_version || t('common.unknown')}</span>
+              <span className={`font-mono ${firmwareInfo.update_available ? 'text-white' : 'text-status-ok'}`}>
+                {firmwareInfo.current_version || t('common.unknown')}
+              </span>
             </div>
-            <div className="flex justify-between items-center text-sm mt-1">
-              <span className="text-bambu-gray">{t('printers.firmwareModal.latestVersion')}</span>
-              <span className="text-orange-400 font-mono">{firmwareInfo.latest_version}</span>
-            </div>
+            {firmwareInfo.update_available && (
+              <div className="flex justify-between items-center text-sm mt-1">
+                <span className="text-bambu-gray">{t('printers.firmwareModal.latestVersion')}</span>
+                <span className="text-orange-400 font-mono">{firmwareInfo.latest_version}</span>
+              </div>
+            )}
             {firmwareInfo.release_notes && (
-              <details className="mt-3 text-sm">
-                <summary className="text-orange-400 cursor-pointer hover:underline">
+              <details className="mt-3 text-sm" open={!firmwareInfo.update_available}>
+                <summary className={`cursor-pointer hover:underline ${firmwareInfo.update_available ? 'text-orange-400' : 'text-status-ok'}`}>
                   {t('printers.firmwareModal.releaseNotes')}
                 </summary>
                 <div className="mt-2 text-bambu-gray text-xs max-h-40 overflow-y-auto whitespace-pre-wrap">
@@ -4137,8 +4156,8 @@ function FirmwareUpdateModal({
             )}
           </div>
 
-          {/* Status / Progress */}
-          {isPreparing ? (
+          {/* Status / Progress (only when update available) */}
+          {!firmwareInfo.update_available ? null : isPreparing ? (
             <div className="flex items-center gap-2 text-bambu-gray text-sm mb-4">
               <Loader2 className="w-4 h-4 animate-spin" />
               {t('printers.firmwareModal.checkingPrereqs')}
@@ -4209,7 +4228,7 @@ function FirmwareUpdateModal({
             <Button variant="secondary" onClick={onClose}>
               {uploadStatus?.status === 'complete' ? t('printers.firmwareModal.done') : t('common.cancel')}
             </Button>
-            {prepareInfo?.can_proceed && !isUploading && uploadStatus?.status !== 'complete' && (
+            {prepareInfo?.can_proceed && !isUploading && uploadStatus?.status !== 'complete' && canUpdate && (
               <Button
                 onClick={handleStartUpload}
                 disabled={uploadMutation.isPending}

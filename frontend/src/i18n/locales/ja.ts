@@ -335,6 +335,7 @@ export default {
     },
     filaments: 'フィラメント',
     firmwareUpdateAvailable: 'ファームウェアアップデートあり: {{current}} → {{latest}}',
+    firmwareUpToDate: 'ファームウェア {{version}} — 最新',
     plateDetection: {
       noPermission: 'このページにアクセスする権限がありません。',
       title: 'プレート検出',
@@ -377,7 +378,8 @@ export default {
     estimatedCompletion: '完了予定時刻',
     slotOptions: 'スロットオプション',
     firmwareModal: {
-      title: 'プリンター',
+      title: 'ファームウェアアップデート',
+      titleUpToDate: 'ファームウェア情報',
       currentVersion: '現在のバージョン',
       latestVersion: '最新バージョン',
       releaseNotes: 'リリースノート',
@@ -392,6 +394,7 @@ export default {
       uploadFirmware: 'ファームウェアをアップロード',
       checkingPrereqs: '前提条件を確認中...',
       uploadedSuccess: 'ファームウェアをSDカードにアップロードしました！',
+      uploadFailed: 'アップロード開始に失敗しました: {{error}}',
       uploadedToast: 'ファームウェアをアップロードしました！プリンター画面からアップデートを実行してください。',
     },
     accessCodePlaceholder: 'プリンター設定から取得',

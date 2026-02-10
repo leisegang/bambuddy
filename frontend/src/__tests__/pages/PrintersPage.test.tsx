@@ -183,4 +183,96 @@ describe('PrintersPage', () => {
       expect(disabledPrinter).toBeInTheDocument();
     });
   });
+
+  describe('firmware version badge', () => {
+    const firmwareUpToDate = {
+      printer_id: 1,
+      current_version: '01.09.00.00',
+      latest_version: '01.09.00.00',
+      update_available: false,
+      download_url: null,
+      release_notes: 'Bug fixes and improvements.',
+    };
+
+    const firmwareUpdateAvailable = {
+      printer_id: 1,
+      current_version: '01.08.00.00',
+      latest_version: '01.09.00.00',
+      update_available: true,
+      download_url: 'https://example.com/firmware.bin',
+      release_notes: 'New features added.',
+    };
+
+    it('shows green badge when firmware is up to date', async () => {
+      server.use(
+        http.get('/api/v1/firmware/updates/:id', () => {
+          return HttpResponse.json(firmwareUpToDate);
+        }),
+        http.get('/api/v1/settings/', () => {
+          return HttpResponse.json({
+            check_printer_firmware: true,
+            auto_archive: true,
+            save_thumbnails: true,
+          });
+        })
+      );
+
+      render(<PrintersPage />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText('01.09.00.00').length).toBeGreaterThan(0);
+      });
+
+      const badge = screen.getAllByText('01.09.00.00')[0].closest('button');
+      expect(badge).toBeInTheDocument();
+      expect(badge?.className).toContain('text-status-ok');
+    });
+
+    it('shows orange badge when firmware update is available', async () => {
+      server.use(
+        http.get('/api/v1/firmware/updates/:id', () => {
+          return HttpResponse.json(firmwareUpdateAvailable);
+        }),
+        http.get('/api/v1/settings/', () => {
+          return HttpResponse.json({
+            check_printer_firmware: true,
+            auto_archive: true,
+            save_thumbnails: true,
+          });
+        })
+      );
+
+      render(<PrintersPage />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText('01.08.00.00').length).toBeGreaterThan(0);
+      });
+
+      const badge = screen.getAllByText('01.08.00.00')[0].closest('button');
+      expect(badge).toBeInTheDocument();
+      expect(badge?.className).toContain('text-orange-400');
+    });
+
+    it('hides badge when firmware check is disabled', async () => {
+      server.use(
+        http.get('/api/v1/settings/', () => {
+          return HttpResponse.json({
+            check_printer_firmware: false,
+            auto_archive: true,
+            save_thumbnails: true,
+          });
+        })
+      );
+
+      render(<PrintersPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('X1 Carbon')).toBeInTheDocument();
+      });
+
+      // Version should not appear when firmware check is disabled
+      expect(screen.queryByText('01.09.00.00')).not.toBeInTheDocument();
+      expect(screen.queryByText('01.08.00.00')).not.toBeInTheDocument();
+    });
+  });
 });
