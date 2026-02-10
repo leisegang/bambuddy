@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import logging
 import re
 import secrets
@@ -85,8 +86,8 @@ def render_template(template_str: str, variables: dict[str, Any]) -> str:
     result = template_str
     for key, value in variables.items():
         result = result.replace("{" + key + "}", str(value) if value is not None else "")
-    # Remove any remaining unreplaced placeholders
-    result = re.sub(r"\{[a-z_]+\}", "", result)
+    # Remove any remaining unreplaced placeholders (case-insensitive, alphanumeric + underscore)
+    result = re.sub(r"\{[a-zA-Z0-9_]+\}", "", result)
     return result
 
 
@@ -416,6 +417,8 @@ async def create_welcome_email_from_template(
         text_body = render_template(template.body_template, variables)
 
         # Create HTML version with embedded login button
+        # Escape text_body to prevent XSS vulnerabilities
+        escaped_text_body = html.escape(text_body)
         html_body = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -424,10 +427,10 @@ async def create_welcome_email_from_template(
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px 8px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">{subject}</h1>
+        <h1 style="color: white; margin: 0; font-size: 24px;">{html.escape(subject)}</h1>
     </div>
     <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; border: 1px solid #ddd; border-top: none;">
-        <div style="white-space: pre-wrap; font-size: 16px;">{text_body}</div>
+        <div style="white-space: pre-wrap; font-size: 16px;">{escaped_text_body}</div>
 
         <div style="text-align: center; margin: 30px 0;">
             <a href="{login_url}" style="display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; font-weight: bold;">Login Now</a>
@@ -476,6 +479,8 @@ async def create_password_reset_email_from_template(
         text_body = render_template(template.body_template, variables)
 
         # Create HTML version with embedded login button
+        # Escape text_body to prevent XSS vulnerabilities
+        escaped_text_body = html.escape(text_body)
         html_body = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -484,10 +489,10 @@ async def create_password_reset_email_from_template(
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px 8px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">{subject}</h1>
+        <h1 style="color: white; margin: 0; font-size: 24px;">{html.escape(subject)}</h1>
     </div>
     <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; border: 1px solid #ddd; border-top: none;">
-        <div style="white-space: pre-wrap; font-size: 16px;">{text_body}</div>
+        <div style="white-space: pre-wrap; font-size: 16px;">{escaped_text_body}</div>
 
         <div style="text-align: center; margin: 30px 0;">
             <a href="{login_url}" style="display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; font-weight: bold;">Login Now</a>
