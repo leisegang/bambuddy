@@ -587,51 +587,41 @@ function NozzleSlotHoverCard({ slot, index, children }: {
   );
 }
 
-// H2C Nozzle Rack Card — 2×3 grid showing 6-position tool-changer dock
+// H2C Nozzle Rack Card — compact single row showing 6-position tool-changer dock
 function NozzleRackCard({ slots }: { slots: import('../api/client').NozzleRackSlot[] }) {
   const { t } = useTranslation();
-  // Filter to dock slots only (exclude the mounted/active entry which is typically id=0 or stat indicates mounted)
-  // Show up to 6 dock positions
-  const dockSlots = slots.slice(0, 6);
+  // Backend now filters to rack-only slots (excludes L/R nozzle heads)
+  const dockSlots = slots;
 
   return (
     <div className="text-center px-2.5 py-1.5 bg-bambu-dark rounded-lg flex-[2] flex flex-col justify-center">
       <p className="text-[9px] text-bambu-gray mb-1">{t('printers.nozzleRack')}</p>
-      <div className="grid grid-cols-3 gap-1">
+      <div className="flex gap-[3px] justify-center">
         {dockSlots.map((slot, i) => {
           const isEmpty = !slot.nozzle_diameter && !slot.nozzle_type;
           const isMounted = slot.stat === 1;
-          // Type abbreviation: S=stainless, H=hardened
-          const typeAbbr = slot.nozzle_type?.includes('hardened') ? 'H' : slot.nozzle_type?.includes('stainless') ? 'S' : '';
           const filamentBg = parseFilamentColor(slot.filament_color);
 
           return (
             <NozzleSlotHoverCard key={slot.id ?? i} slot={slot} index={i}>
               <div
-                className={`rounded-md py-1 px-1 text-center cursor-default transition-colors ${
+                className={`w-7 h-7 rounded flex items-center justify-center cursor-default transition-colors border-b-2 ${
                   isEmpty
-                    ? 'bg-bambu-dark-tertiary/20 opacity-30'
+                    ? 'bg-bambu-dark-tertiary/20 opacity-20 border-transparent'
                     : isMounted
-                      ? 'ring-1 ring-green-500/70 bg-green-950/40'
-                      : 'bg-bambu-dark-tertiary/40'
+                      ? 'bg-green-950/35 border-green-400'
+                      : 'bg-bambu-dark-tertiary/40 border-bambu-dark-tertiary/40'
                 }`}
                 style={filamentBg && !isEmpty ? { backgroundColor: filamentBg } : undefined}
               >
                 {isEmpty ? (
-                  <p className="text-[9px] text-bambu-gray/50">—</p>
+                  <span className="text-[9px] text-bambu-gray/50">—</span>
                 ) : (
-                  <>
-                    <p className={`text-[11px] font-semibold leading-tight ${isMounted ? 'text-green-400' : 'text-white'}`}
-                       style={filamentBg ? { textShadow: '0 1px 3px rgba(0,0,0,0.9)' } : undefined}
-                    >
-                      {slot.nozzle_diameter || '?'}
-                    </p>
-                    {typeAbbr && (
-                      <p className="text-[8px] text-bambu-gray/70 leading-none mt-0.5"
-                         style={filamentBg ? { textShadow: '0 1px 2px rgba(0,0,0,0.8)' } : undefined}
-                      >{typeAbbr}</p>
-                    )}
-                  </>
+                  <span className={`text-[10px] font-semibold ${isMounted ? 'text-green-400' : 'text-white'}`}
+                        style={filamentBg ? { textShadow: '0 1px 3px rgba(0,0,0,0.9)' } : undefined}
+                  >
+                    {slot.nozzle_diameter || '?'}
+                  </span>
                 )}
               </div>
             </NozzleSlotHoverCard>

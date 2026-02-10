@@ -1748,28 +1748,36 @@ class BambuMQTTClient:
             nozzle_data = device.get("nozzle", {})
             nozzle_info = nozzle_data.get("info", [])
             if isinstance(nozzle_info, list):
-                # H2C tool-changer: >2 entries means nozzle rack (6 dock + 1 mounted = 7)
+                # H2C tool-changer: >2 entries means nozzle rack
+                # nozzle_info contains L/R nozzle heads (id 0,1) AND rack slots (id >= 16).
+                # Filter out L/R heads — they're already tracked in self.state.nozzles.
                 if len(nozzle_info) > 2:
-                    self.state.nozzle_rack = [
-                        {
-                            "id": n.get("id", i),
-                            "type": str(n.get("type", "")),
-                            "diameter": str(n.get("diameter", "")),
-                            "wear": n.get("wear"),
-                            "stat": n.get("stat"),
-                            "max_temp": n.get("max_temp", 0),
-                            "serial_number": str(n.get("serial_number", "")),
-                            "filament_color": str(n.get("filament_colour", "")),
-                            "filament_id": str(n.get("filament_id", "")),
-                        }
-                        for i, n in enumerate(nozzle_info)
-                    ]
+                    rack_entries = [n for n in nozzle_info if n.get("id", 0) >= 2]
+                    self.state.nozzle_rack = sorted(
+                        [
+                            {
+                                "id": n.get("id", i),
+                                "type": str(n.get("type", "")),
+                                "diameter": str(n.get("diameter", "")),
+                                "wear": n.get("wear"),
+                                "stat": n.get("stat"),
+                                "max_temp": n.get("max_temp", 0),
+                                "serial_number": str(n.get("serial_number", "")),
+                                "filament_color": str(n.get("filament_colour", "")),
+                                "filament_id": str(n.get("filament_id", "")),
+                            }
+                            for i, n in enumerate(rack_entries)
+                        ],
+                        key=lambda x: x["id"],
+                    )
                     if not hasattr(self, "_nozzle_rack_logged") and nozzle_info:
                         self._nozzle_rack_logged = True
                         logger.info(
-                            "[%s] Nozzle rack raw keys: %s",
+                            "[%s] Nozzle info: %d entries, IDs: %s, rack IDs: %s",
                             self.serial_number,
-                            [list(n.keys()) for n in nozzle_info[:2]],
+                            len(nozzle_info),
+                            [n.get("id") for n in nozzle_info],
+                            [n.get("id") for n in rack_entries],
                         )
                 for nozzle in nozzle_info:
                     idx = nozzle.get("id", 0)
