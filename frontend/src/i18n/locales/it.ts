@@ -2543,11 +2543,11 @@ export default {
       noPrinters: 'Nessuna stampante configurata. Aggiungi una stampante per usare la modalita proxy.',
     },
     remoteInterface: {
-      title: 'Interfaccia rete slicer',
-      configured: 'Proxy SSDP abilitato',
-      optional: 'Opzionale - per discovery SSDP tra reti',
-      placeholder: 'Seleziona interfaccia per rete slicer...',
-      hint: 'Seleziona l\'interfaccia di rete connessa allo slicer. Abilita scoperta automatica in Bambu Studio.',
+      title: 'Sovrascrittura interfaccia di rete',
+      configured: 'Sovrascrittura interfaccia attiva',
+      optional: 'Opzionale - usare se l\'IP rilevato automaticamente e sbagliato (es. piu NIC, Docker, VPN)',
+      placeholder: 'Rilevamento automatico (predefinito)...',
+      hint: 'Sovrascrive l\'indirizzo IP pubblicizzato via SSDP e usato nel certificato TLS. Utile quando Bambuddy ha piu interfacce di rete.',
     },
     mode: {
       title: 'Modalita',

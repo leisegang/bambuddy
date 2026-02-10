@@ -249,7 +249,8 @@ class VirtualPrinterManager:
         needs_restart = (
             model_changed
             or mode_changed
-            or (mode == "proxy" and (target_changed or serial_changed or remote_iface_changed))
+            or remote_iface_changed
+            or (mode == "proxy" and (target_changed or serial_changed))
         )
 
         if enabled and not self._enabled:
@@ -392,8 +393,12 @@ class VirtualPrinterManager:
         self._cert_service.serial = current_serial
 
         # Regenerate printer cert if serial changed (CA is preserved)
+        # Include remote interface IP in SAN so slicer TLS succeeds on that interface
+        additional_ips = []
+        if self._remote_interface_ip:
+            additional_ips.append(self._remote_interface_ip)
         self._cert_service.delete_printer_certificate()
-        cert_path, key_path = self._cert_service.generate_certificates()
+        cert_path, key_path = self._cert_service.generate_certificates(additional_ips=additional_ips or None)
         logger.info("Generated certificate for serial: %s", current_serial)
 
         # Create directories
@@ -405,6 +410,7 @@ class VirtualPrinterManager:
             name=self.PRINTER_NAME,
             serial=self.printer_serial,
             model=self._model,
+            advertise_ip=self._remote_interface_ip,
         )
 
         self._ftp = VirtualPrinterFTPServer(

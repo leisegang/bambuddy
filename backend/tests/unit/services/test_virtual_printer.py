@@ -382,6 +382,74 @@ class TestSSDPServer:
 
         assert b"DevModel.bambu.com: BL-P001" in message
 
+    # ========================================================================
+    # Tests for advertise_ip parameter
+    # ========================================================================
+
+    def test_advertise_ip_sets_local_ip(self):
+        """Verify advertise_ip overrides auto-detection."""
+        from backend.app.services.virtual_printer.ssdp_server import VirtualPrinterSSDPServer
+
+        server = VirtualPrinterSSDPServer(
+            serial="TEST123",
+            name="TestPrinter",
+            model="BL-P001",
+            advertise_ip="10.0.0.50",
+        )
+
+        assert server._local_ip == "10.0.0.50"
+
+    def test_advertise_ip_empty_string_uses_auto_detect(self):
+        """Verify empty advertise_ip falls back to auto-detection."""
+        from backend.app.services.virtual_printer.ssdp_server import VirtualPrinterSSDPServer
+
+        server = VirtualPrinterSSDPServer(
+            serial="TEST123",
+            name="TestPrinter",
+            model="BL-P001",
+            advertise_ip="",
+        )
+
+        assert server._local_ip is None
+
+    def test_advertise_ip_in_notify_message(self):
+        """Verify NOTIFY message uses the advertise_ip."""
+        from backend.app.services.virtual_printer.ssdp_server import VirtualPrinterSSDPServer
+
+        server = VirtualPrinterSSDPServer(
+            serial="TEST123",
+            name="TestPrinter",
+            model="BL-P001",
+            advertise_ip="10.0.0.50",
+        )
+
+        message = server._build_notify_message()
+
+        assert b"Location: 10.0.0.50" in message
+
+    def test_advertise_ip_in_response_message(self):
+        """Verify M-SEARCH response uses the advertise_ip."""
+        from backend.app.services.virtual_printer.ssdp_server import VirtualPrinterSSDPServer
+
+        server = VirtualPrinterSSDPServer(
+            serial="TEST123",
+            name="TestPrinter",
+            model="BL-P001",
+            advertise_ip="10.0.0.50",
+        )
+
+        message = server._build_response_message()
+
+        assert b"Location: 10.0.0.50" in message
+
+    def test_default_no_advertise_ip(self):
+        """Verify default constructor has None local_ip (auto-detect)."""
+        from backend.app.services.virtual_printer.ssdp_server import VirtualPrinterSSDPServer
+
+        server = VirtualPrinterSSDPServer()
+
+        assert server._local_ip is None
+
 
 class TestCertificateService:
     """Tests for TLS certificate generation."""
@@ -684,7 +752,7 @@ class TestVirtualPrinterManagerProxyMode:
 
     @pytest.mark.asyncio
     async def test_configure_proxy_mode_restarts_on_remote_interface_change(self, manager):
-        """Verify changing remote_interface_ip restarts services."""
+        """Verify changing remote_interface_ip restarts services in proxy mode."""
         # Simulate running state
         manager._enabled = True
         manager._mode = "proxy"
@@ -704,3 +772,215 @@ class TestVirtualPrinterManagerProxyMode:
         # Should have stopped and started
         manager._stop.assert_called_once()
         manager._start.assert_called_once()
+
+
+class TestVirtualPrinterManagerServerModeIPOverride:
+    """Tests for remote_interface_ip in server mode (immediate/review/print_queue)."""
+
+    @pytest.fixture
+    def manager(self):
+        """Create a VirtualPrinterManager instance."""
+        from backend.app.services.virtual_printer.manager import VirtualPrinterManager
+
+        return VirtualPrinterManager()
+
+    @pytest.mark.asyncio
+    async def test_configure_immediate_mode_stores_remote_interface_ip(self, manager):
+        """Verify immediate mode stores remote_interface_ip."""
+        manager._start = AsyncMock()
+
+        await manager.configure(
+            enabled=True,
+            access_code="12345678",
+            mode="immediate",
+            remote_interface_ip="10.0.0.50",
+        )
+
+        assert manager._remote_interface_ip == "10.0.0.50"
+
+    @pytest.mark.asyncio
+    async def test_configure_review_mode_stores_remote_interface_ip(self, manager):
+        """Verify review mode stores remote_interface_ip."""
+        manager._start = AsyncMock()
+
+        await manager.configure(
+            enabled=True,
+            access_code="12345678",
+            mode="review",
+            remote_interface_ip="10.0.0.50",
+        )
+
+        assert manager._remote_interface_ip == "10.0.0.50"
+
+    @pytest.mark.asyncio
+    async def test_configure_print_queue_mode_stores_remote_interface_ip(self, manager):
+        """Verify print_queue mode stores remote_interface_ip."""
+        manager._start = AsyncMock()
+
+        await manager.configure(
+            enabled=True,
+            access_code="12345678",
+            mode="print_queue",
+            remote_interface_ip="10.0.0.50",
+        )
+
+        assert manager._remote_interface_ip == "10.0.0.50"
+
+    @pytest.mark.asyncio
+    async def test_remote_interface_change_restarts_immediate_mode(self, manager):
+        """Verify changing remote_interface_ip restarts services in immediate mode."""
+        manager._enabled = True
+        manager._mode = "immediate"
+        manager._access_code = "12345678"
+        manager._remote_interface_ip = "10.0.0.50"
+        manager._tasks = [MagicMock(done=MagicMock(return_value=False))]
+        manager._stop = AsyncMock()
+        manager._start = AsyncMock()
+
+        await manager.configure(
+            enabled=True,
+            access_code="12345678",
+            mode="immediate",
+            remote_interface_ip="10.0.0.99",  # Changed
+        )
+
+        manager._stop.assert_called_once()
+        manager._start.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_interface_change_restarts_review_mode(self, manager):
+        """Verify changing remote_interface_ip restarts services in review mode."""
+        manager._enabled = True
+        manager._mode = "review"
+        manager._access_code = "12345678"
+        manager._remote_interface_ip = "10.0.0.50"
+        manager._tasks = [MagicMock(done=MagicMock(return_value=False))]
+        manager._stop = AsyncMock()
+        manager._start = AsyncMock()
+
+        await manager.configure(
+            enabled=True,
+            access_code="12345678",
+            mode="review",
+            remote_interface_ip="10.0.0.99",  # Changed
+        )
+
+        manager._stop.assert_called_once()
+        manager._start.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_remote_interface_change_restarts_print_queue_mode(self, manager):
+        """Verify changing remote_interface_ip restarts services in print_queue mode."""
+        manager._enabled = True
+        manager._mode = "print_queue"
+        manager._access_code = "12345678"
+        manager._remote_interface_ip = "10.0.0.50"
+        manager._tasks = [MagicMock(done=MagicMock(return_value=False))]
+        manager._stop = AsyncMock()
+        manager._start = AsyncMock()
+
+        await manager.configure(
+            enabled=True,
+            access_code="12345678",
+            mode="print_queue",
+            remote_interface_ip="10.0.0.99",  # Changed
+        )
+
+        manager._stop.assert_called_once()
+        manager._start.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_no_restart_when_remote_interface_unchanged(self, manager):
+        """Verify no restart if remote_interface_ip hasn't changed."""
+        manager._enabled = True
+        manager._mode = "immediate"
+        manager._access_code = "12345678"
+        manager._remote_interface_ip = "10.0.0.50"
+        manager._tasks = [MagicMock(done=MagicMock(return_value=False))]
+        manager._stop = AsyncMock()
+        manager._start = AsyncMock()
+
+        await manager.configure(
+            enabled=True,
+            access_code="12345678",
+            mode="immediate",
+            remote_interface_ip="10.0.0.50",  # Same
+        )
+
+        manager._stop.assert_not_called()
+        manager._start.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_server_mode_passes_advertise_ip_to_ssdp(self, manager):
+        """Verify _start_server_mode passes remote_interface_ip as advertise_ip to SSDP."""
+        manager._mode = "immediate"
+        manager._access_code = "12345678"
+        manager._remote_interface_ip = "10.0.0.50"
+        manager._model = "3DPrinter-X1-Carbon"
+
+        with (
+            patch("backend.app.services.virtual_printer.manager.VirtualPrinterSSDPServer") as mock_ssdp_cls,
+            patch("backend.app.services.virtual_printer.manager.VirtualPrinterFTPServer"),
+            patch("backend.app.services.virtual_printer.manager.SimpleMQTTServer"),
+            patch.object(manager._cert_service, "delete_printer_certificate"),
+            patch.object(
+                manager._cert_service,
+                "generate_certificates",
+                return_value=(Path("/tmp/cert.pem"), Path("/tmp/key.pem")),
+            ),
+        ):
+            mock_ssdp_cls.return_value.start = AsyncMock()
+            await manager._start_server_mode()
+
+            mock_ssdp_cls.assert_called_once_with(
+                name="Bambuddy",
+                serial=manager.printer_serial,
+                model="3DPrinter-X1-Carbon",
+                advertise_ip="10.0.0.50",
+            )
+
+    @pytest.mark.asyncio
+    async def test_server_mode_passes_additional_ips_to_certificate(self, manager):
+        """Verify _start_server_mode includes remote_interface_ip in certificate SANs."""
+        manager._mode = "immediate"
+        manager._access_code = "12345678"
+        manager._remote_interface_ip = "10.0.0.50"
+        manager._model = "3DPrinter-X1-Carbon"
+
+        with (
+            patch("backend.app.services.virtual_printer.manager.VirtualPrinterSSDPServer"),
+            patch("backend.app.services.virtual_printer.manager.VirtualPrinterFTPServer"),
+            patch("backend.app.services.virtual_printer.manager.SimpleMQTTServer"),
+            patch.object(manager._cert_service, "delete_printer_certificate"),
+            patch.object(
+                manager._cert_service,
+                "generate_certificates",
+                return_value=(Path("/tmp/cert.pem"), Path("/tmp/key.pem")),
+            ) as mock_gen_certs,
+        ):
+            await manager._start_server_mode()
+
+            mock_gen_certs.assert_called_once_with(additional_ips=["10.0.0.50"])
+
+    @pytest.mark.asyncio
+    async def test_server_mode_no_additional_ips_without_remote_interface(self, manager):
+        """Verify _start_server_mode passes None for additional_ips when no remote interface."""
+        manager._mode = "immediate"
+        manager._access_code = "12345678"
+        manager._remote_interface_ip = ""
+        manager._model = "3DPrinter-X1-Carbon"
+
+        with (
+            patch("backend.app.services.virtual_printer.manager.VirtualPrinterSSDPServer"),
+            patch("backend.app.services.virtual_printer.manager.VirtualPrinterFTPServer"),
+            patch("backend.app.services.virtual_printer.manager.SimpleMQTTServer"),
+            patch.object(manager._cert_service, "delete_printer_certificate"),
+            patch.object(
+                manager._cert_service,
+                "generate_certificates",
+                return_value=(Path("/tmp/cert.pem"), Path("/tmp/key.pem")),
+            ) as mock_gen_certs,
+        ):
+            await manager._start_server_mode()
+
+            mock_gen_certs.assert_called_once_with(additional_ips=None)

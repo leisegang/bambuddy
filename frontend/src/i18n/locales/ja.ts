@@ -2413,11 +2413,11 @@ export default {
       title: '仮想プリンターを有効化',
     },
     remoteInterface: {
-      optional: 'オプション',
-      title: 'スライサーネットワークインターフェース',
-      configured: 'SSDPプロキシ有効',
-      placeholder: 'スライサーネットワーク用インターフェースを選択...',
-      hint: 'スライサーに接続されたネットワークインターフェースを選択。Bambu Studioでの自動プリンター検出を有効にします。',
+      optional: 'オプション — 自動検出IPが間違っている場合に使用（複数NIC、Docker、VPNなど）',
+      title: 'ネットワークインターフェース上書き',
+      configured: 'インターフェース上書き有効',
+      placeholder: '自動検出（デフォルト）...',
+      hint: 'SSDPで広告され、TLS証明書に使用されるIPアドレスを上書きします。Bambuddyに複数のネットワークインターフェースがある場合に便利です。',
     },
     howItWorks: {
       step5: '設定したアクセスコードで接続する',

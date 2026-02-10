@@ -2543,11 +2543,11 @@ export default {
       noPrinters: 'Keine Drucker konfiguriert. Füge zuerst einen Drucker hinzu, um den Proxy-Modus zu verwenden.',
     },
     remoteInterface: {
-      title: 'Slicer-Netzwerkschnittstelle',
-      configured: 'SSDP-Proxy aktiviert',
-      optional: 'Optional - für SSDP-Erkennung über Netzwerke hinweg',
-      placeholder: 'Schnittstelle für Slicer-Netzwerk auswählen...',
-      hint: 'Wähle die Netzwerkschnittstelle, die mit dem Slicer verbunden ist. Ermöglicht automatische Druckererkennung in Bambu Studio.',
+      title: 'Netzwerkschnittstelle überschreiben',
+      configured: 'Schnittstellenüberschreibung aktiv',
+      optional: 'Optional - verwenden wenn die automatisch erkannte IP falsch ist (z.B. mehrere NICs, Docker, VPN)',
+      placeholder: 'Automatisch erkennen (Standard)...',
+      hint: 'Überschreibt die per SSDP beworbene und im TLS-Zertifikat verwendete IP-Adresse. Nützlich wenn Bambuddy mehrere Netzwerkschnittstellen hat.',
     },
     mode: {
       title: 'Modus',

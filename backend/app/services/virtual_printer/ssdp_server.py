@@ -33,6 +33,7 @@ class VirtualPrinterSSDPServer:
         name: str = "Bambuddy",
         serial: str = "00M09A391800001",  # X1C serial format for compatibility
         model: str = "BL-P001",  # X1C model code for best compatibility
+        advertise_ip: str = "",
     ):
         """Initialize the SSDP server.
 
@@ -40,13 +41,14 @@ class VirtualPrinterSSDPServer:
             name: Display name shown in slicer discovery
             serial: Unique serial number for this virtual printer (must match cert CN)
             model: Model code (BL-P001=X1C, C11=P1S, O1D=H2D)
+            advertise_ip: Override IP to advertise instead of auto-detecting
         """
         self.name = name
         self.serial = serial
         self.model = model
         self._running = False
         self._socket: socket.socket | None = None
-        self._local_ip: str | None = None
+        self._local_ip: str | None = advertise_ip or None
 
     def _get_local_ip(self) -> str:
         """Get the local IP address to advertise."""

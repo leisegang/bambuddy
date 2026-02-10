@@ -2543,11 +2543,11 @@ export default {
       noPrinters: 'No printers configured. Add a printer first to use proxy mode.',
     },
     remoteInterface: {
-      title: 'Slicer Network Interface',
-      configured: 'SSDP proxy enabled',
-      optional: 'Optional - for SSDP discovery across networks',
-      placeholder: 'Select interface for slicer network...',
-      hint: 'Select the network interface connected to the slicer. Enables automatic printer discovery in Bambu Studio.',
+      title: 'Network Interface Override',
+      configured: 'Interface override active',
+      optional: 'Optional - use if auto-detected IP is wrong (e.g. multiple NICs, Docker, VPN)',
+      placeholder: 'Auto-detect (default)...',
+      hint: 'Override the IP address advertised via SSDP and used in the TLS certificate. Useful when Bambuddy has multiple network interfaces.',
     },
     mode: {
       title: 'Mode',
